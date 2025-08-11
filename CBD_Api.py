@@ -22,6 +22,18 @@ class Printer():
         output = self.sock.recv(buffSize)
 
         return output
+        
+    def __clearBuffer__(self) -> None:
+        output = ""
+        while True:
+            chunk = self.sock.recv(self.buffSize)
+            if not chunk:
+                break  # connection closed or no more data
+            output += chunk.decode('utf-8', errors='ignore')
+            lines = output.split("\n")
+            for line in lines:
+                if line.strip() == "ok N:0":
+                    return
 
     def __sendRecieveSingleNice__(self,code, buffSize=-1) -> str: # sends an M-code then recieves a single packet answer
         if buffSize == -1:
@@ -202,11 +214,11 @@ class Printer():
         
         # start transmission
         m28 = self.__sendRecieveSingleNice__(f"M28 {fileNameCard}")
-        if m28 != "ok N:0":
+        if "Error" in m28 or "Failed" in m28:
             return f"M28 Error: {m28}"
         
         l=os.stat(fileNameLocal).st_size
-
+        self.__clearBuffer__()
         f=open(fileNameLocal,'rb')
         remain=l
         offs=0
