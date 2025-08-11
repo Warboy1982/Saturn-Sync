@@ -1,2 +1,5 @@
 socket
 datetime
+pystray
+watchdog
+pillow
