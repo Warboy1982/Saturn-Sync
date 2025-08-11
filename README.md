@@ -1,6 +1,8 @@
 ## Saturn Sync
     
 syncs a folder on your hard drive with storage on older model chitu boards
+was developed for the original elegoo saturn, but probably works with the
+mars line as well.
 
 .cbd files are automatically transferred without user interaction:
 any additions, deletions or updates to .cbd files in the local folder will
