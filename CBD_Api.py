@@ -223,31 +223,44 @@ class Printer():
         remain=l
         offs=0
         retr=0
-        print('Length:',l)
-        #
+        print(fileNameCard,' Length:',l)
+        send = True
+        readamt = 1280
         while remain > 0:
-            dd=f.read(1280)
-            #print(dd,len(dd),offs)
-            remain=remain-len(dd)
-            dc=bytearray(offs.to_bytes(length=4, byteorder='little'))
-            cxor=0
-            for c in dd: cxor=cxor ^ c
-            for c in dc: cxor=cxor ^ c
-            dc.append(cxor)
-            dc.append(0x83)
-            #print('chk:',binascii.hexlify(bytearray(dc)).decode('ascii'),offs,cxor)
-            offs=offs+len(dd)
-
-            #udp_send(dd+dc)
-            #s=udp_gettxt(forever=True)
-            self.sock.sendto(dd+dc, (self.ip,self.port))
+            if send:
+                f.seek(offs)
+                dd=f.read(readamt)
+                dc=bytearray(offs.to_bytes(length=4, byteorder='little'))
+                cxor=0
+                for c in dd: cxor=cxor ^ c
+                for c in dc: cxor=cxor ^ c
+                dc.append(cxor)
+                dc.append(0x83)
+                self.sock.sendto(dd+dc, (self.ip,self.port))
             s = self.sock.recv(self.buffSize)
-            #print(s)
+            if s.split()[0] == b"ok":
+                readamt = 1280
+                if send:
+                    offs=offs+len(dd)
+                    remain=remain-len(dd)
+                else:
+                    send = True
+            elif s.split()[0] == b"resend":
+                # example: b'resend 1280,offset error:6165760'
+                s_str = s.decode("utf-8")
+                parts = s_str.split()
+                amt_str = parts[1].split(",")[0]
+                offs_str = parts[2].split(":")[1]
+                readamt = int(amt_str)
+                offs = int(offs_str)
+                remain = l - offs
+                retr += 1
+                send = True
+            else:
+                send = False # garbage message, probably, "it's not printing now!"
             print(retr,remain,end='   \r')
-            #print('chk:',binascii.hexlify(bytearray(dc)).decode('ascii'),offs,cxor)
-            
-        
-        #sleep(0.1)
+            #sleep(0.01)
+        f.close()
         m4012 = self.__sendRecieveSingleNice__(f"M4012 I1 T{l}")
         if m4012.split()[0] != "ok":
             return f"Size Verify Error: {m4012}"
