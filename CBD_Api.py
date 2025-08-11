@@ -173,7 +173,7 @@ class Printer():
         elif string.split()[0] == "SD":
             return "Printing"
         else:
-            return "Not Printing"
+            return self.printingStatus() # purge buffer until we get a meaningful response
 
     def printingPercent(self) -> list:
         """Returns the percentage of the print in bytes complete (not massively accurate)
