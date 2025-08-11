@@ -247,13 +247,108 @@ class Printer():
         """
         for file in self.getCardFiles():
             self.removeCardFile(file[0])
+    
+def main():
+    ip = input("Enter printer IP address (e.g. 192.168.1.174): ").strip()
+    p = Printer(ip)
 
+    menu = """
+Choose an option:
+1. List files on storage
+2. Upload file
+3. Delete file
+4. Start print
+5. Stop print
+6. Get printing status
+7. Get printing percentage
+8. Get printer version
+9. Get printer ID
+10. Get printer name
+11. Home Z axis
+12. Get Z axis position
+13. Jog Z axis (soft limits)
+14. Format card (delete all files)
+0. Exit
+"""
+
+    while True:
+        print(menu)
+        choice = input("Enter choice: ").strip()
+        if choice == "1":
+            files = p.getCardFiles()
+            if files:
+                print("Files on card (filename, size):")
+                for f in files:
+                    print(f"  {f[0]}  {f[1]} bytes")
+            else:
+                print("No files found.")
+        elif choice == "2":
+            local_file = input("Enter local filename to upload (with extension): ").strip()
+            card_file = input("Enter filename on card (leave empty to use same): ").strip()
+            try:
+                res = p.uploadFile(local_file, card_file)
+                print(f"Upload result: {res}")
+            except FileNotFoundError:
+                print("Local file not found.")
+            except Exception as e:
+                print(f"Error during upload: {e}")
+        elif choice == "3":
+            filename = input("Enter filename to delete (with extension): ").strip()
+            res = p.removeCardFile(filename)
+            print(f"Delete result: {res}")
+        elif choice == "4":
+            filename = input("Enter filename to print (with extension): ").strip()
+            res = p.startPrinting(filename)
+            print(f"Start print result: {res}")
+        elif choice == "5":
+            res = p.stopPrinting()
+            print(f"Stop print result: {res}")
+        elif choice == "6":
+            status = p.printingStatus()
+            print(f"Printing status: {status}")
+        elif choice == "7":
+            try:
+                percent = p.printingPercent()
+                print(f"Printed bytes: {percent[0]} / {percent[1]}")
+            except Exception as e:
+                print(f"Error getting print percentage: {e}")
+        elif choice == "8":
+            ver = p.getVer()
+            print(f"Printer version: {ver}")
+        elif choice == "9":
+            pid = p.getID()
+            print(f"Printer ID: {pid}")
+        elif choice == "10":
+            name = p.getName()
+            print(f"Printer name: {name}")
+        elif choice == "11":
+            p.homeAxis()
+            print("Z axis homed.")
+        elif choice == "12":
+            try:
+                pos = p.getAxis()
+                print(f"Current Z axis position: {pos}")
+            except Exception as e:
+                print(f"Error getting axis position: {e}")
+        elif choice == "13":
+            try:
+                dist = float(input("Enter Z position to jog to (soft limits apply): ").strip())
+                res = p.jogSoft(dist)
+                print(res)
+            except ValueError:
+                print("Invalid number.")
+        elif choice == "14":
+            confirm = input("Are you sure you want to format card and delete all files? (yes/no): ").strip().lower()
+            if confirm == "yes":
+                p.formatCard()
+                print("Card formatted (all files deleted).")
+            else:
+                print("Format cancelled.")
+        elif choice == "0":
+            print("Exiting.")
+            exit(0)
+        else:
+            print("Invalid choice, try again.")
 
 if __name__ == "__main__":
-        p = Printer("192.168.1.174")
-
-        print(p.getCardFiles())
-
-
-    
-    
+    main()
