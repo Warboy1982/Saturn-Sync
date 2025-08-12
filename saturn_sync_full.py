@@ -376,7 +376,7 @@ class SyncAgent:
                 return
                 
             result = self.printer.uploadFile(str(path), filename)
-            if "Error" in result or "Failed" in result:
+            if "Error" in result or "Failed" in result or "No Response" in result:
                 self.handle_error(f"Upload error: {result}")
             else:
                 # Update metadata on successful upload
