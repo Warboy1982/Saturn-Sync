@@ -195,6 +195,9 @@ class SyncAgent:
             now = time.time()
             if self.manual_sync_requested:
                 self.manual_sync_requested = False
+                if self.status == "offline":
+                    if not self.ping_printer():
+                        continue
                 self.sync_all()
 
             if now >= next_ping:
@@ -214,9 +217,7 @@ class SyncAgent:
             printing_state = self.printer.printingStatus()
             if printing_state == "Printing":
                 self.printing_paused = True
-                self.update_status("synced")  # Show synced but paused
-                # Optionally track printing file (not in provided API)
-                # Could parse status for filename if extended
+                self.update_status("synced")
                 return
             else:
                 if self.printing_paused:
@@ -465,11 +466,7 @@ class SyncAgent:
         )
         self.tray_icon = pystray.Icon("ElegooSaturnSync", self.icon_images["offline"], "Elegoo Saturn Sync Agent", menu)
         self.tray_icon.run_detached()
-
-        # Add double-click handler for opening UI
-        # pystray doesn't support direct double-click, so workaround:
         self.tray_icon.visible = True
-        # We can add a single click to open UI only if errors present (optional)
 
     def show_ui(self, _=None):
         if self.ui:
