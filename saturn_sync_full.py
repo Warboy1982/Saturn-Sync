@@ -616,9 +616,9 @@ class SyncUI:
             messagebox.showwarning("No selection", "Please select a file to print.")
             return
         filename = self.file_listbox.get(sel[0])
-        if filename.split()[0] != "✔":
+        if not filename.startswith("✔ "):
             return
-        filename = filename.split("✔ ")[1]
+        filename = filename[2:]
         # Confirm
         if not messagebox.askyesno("Confirm Print", f"Send print command for '{filename}'?"):
             return
