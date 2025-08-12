@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 import tkinter as tk
-from tkinter import messagebox, filedialog
+from tkinter import messagebox, filedialog, simpledialog
 
 import pystray
 from pystray import MenuItem as item
