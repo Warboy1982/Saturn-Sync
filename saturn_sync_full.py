@@ -8,11 +8,11 @@ from datetime import datetime
 from pathlib import Path
 
 import tkinter as tk
-from tkinter import messagebox, filedialog, simpledialog
+from tkinter import messagebox, filedialog, ttk
 
 import pystray
 from pystray import MenuItem as item
-from PIL import Image, ImageDraw, ImageFont, ImageTk
+from PIL import Image, ImageDraw, ImageTk
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -118,7 +118,7 @@ class SyncAgent:
         self.status = "offline"  # offline, syncing, synced, error
         self.error_files = set()
         self.syncing_files = set()
-        self.current_printing_file = None
+        self.current_printing_file = ""
 
         self.pending_uploads = Queue()
         self.pending_deletions = Queue()
@@ -376,11 +376,19 @@ class SyncAgent:
             else:
                 self.update_status("error")
                 return
-                
+            self.current_printing_file = filename
+            if self.ui:
+                self.ui.set_controls_enabled(False)
+                self.ui.update_status_text(f"Uploading {filename}, 0/{os.stat(str(path)).st_size}")
+                self.ui.progress_var.set(0)
+                self.ui.bar_upload_print.pack()
+                self.ui.start_upload_progress()
             result = self.printer.uploadFile(str(path), filename)
             if "Error" in result or "Failed" in result or "No Response" in result:
+                self.ui.update_status_text("Upload Failed!")
                 self.handle_error(f"Upload error: {result}")
             else:
+                self.ui.update_status_text("Upload Complete!")
                 # Update metadata on successful upload
                 stat = path.stat()
                 checksum = self.compute_checksum(path)
@@ -395,10 +403,15 @@ class SyncAgent:
                     self.error_files.remove(filename)
         except Exception as e:
             self.handle_error(f"Upload exception: {e}")
+            self.ui.update_status_text("Upload Failed!")
         finally:
+            self.current_printing_file = ""
             self.syncing_files.discard(filename)
             self.update_status("synced")
-            self.ui.refresh_file_list()
+            if self.ui:
+                self.ui.root.after(0, lambda: self.ui.progress_bar.pack_forget())
+                self.ui.root.after(0, lambda: self.ui.set_controls_enabled(True))
+                self.ui.root.after(0, self.ui.refresh_file_list)
 
     def handle_error(self, message):
         self.error_files.add(message)
@@ -414,6 +427,8 @@ class SyncAgent:
         if new_status == self.status:
             return
         self.status = new_status
+        if self.ui and self.current_printing_file == "":
+            self.ui.update_status_text(new_status)
         self.update_tray_icon(new_status)
         self.update_tray_tooltip()
 
@@ -518,21 +533,32 @@ class SyncUI:
 
         speed_frame = tk.Frame(self.root)
 
-        self.slider_pos = tk.DoubleVar(value=self.agent.config["send_delay"])
-        self.speed_slider = tk.Scale(speed_frame, from_=0.0, to=0.2, resolution=0.001, orient=tk.HORIZONTAL, label="Send Delay (sec)", length=200, showvalue=False, variable=self.slider_pos)
-        self.speed_slider.pack(side=tk.LEFT)
-
         self.delay_entry = tk.Entry(speed_frame, width=6)
         self.delay_entry.insert(0, f"{self.agent.config['send_delay']}")
         self.delay_entry.pack(side=tk.LEFT, padx=(5, 0))
 
-        self.btn_sync_now = tk.Button(btn_frame, text="Manual Sync Now", command=self.agent.manual_sync)
+        self.slider_pos = tk.DoubleVar(value=self.agent.config["send_delay"])
+        self.speed_slider = tk.Scale(speed_frame, from_=0.0, to=0.2, resolution=0.001, orient=tk.HORIZONTAL, label="Send Delay (sec)", length=200, showvalue=False, variable=self.slider_pos)
+        self.speed_slider.pack(side=tk.LEFT)
 
-        self.btn_refresh.pack(side=tk.LEFT, padx=5)
+        self.btn_sync_now = tk.Button(btn_frame, text="Manual Sync Now", command=self.agent.manual_sync)
+        
+        self.progress_var = tk.DoubleVar()
+        bar_frame = tk.Frame(self.root)
+        self.bar_upload_print = ttk.Progressbar(bar_frame, orient="horizontal", mode="determinate", length=200, variable=self.progress_var, maximum=100)
+        self.bar_upload_print.pack(side=tk.RIGHT)
+        self.text_status = tk.Text(bar_frame, height=1, width=40, wrap="none", background="systemButtonFace", relief="flat")
+        self.text_status.pack(side=tk.LEFT)
+        self.text_status.insert(1.0, self.agent.status)
+        self.text_status['state'] = 'disabled'
+
         self.btn_print.pack(side=tk.LEFT, padx=5)
         self.btn_sync_now.pack(side=tk.RIGHT, padx=5)
+        self.btn_refresh.pack(side=tk.RIGHT, padx=5)
         self.btn_open_folder.pack(side=tk.RIGHT, padx=5)
         speed_frame.pack(side=tk.LEFT, padx=5, pady=5)
+        bar_frame.pack(side=tk.RIGHT, padx=5, pady=5)
+
         def update_from_slider(value):
             value = float(value)
             self.delay_entry.delete(0, tk.END)
@@ -569,6 +595,13 @@ class SyncUI:
 
     def open_folder(self):
         os.startfile(Path(self.agent.sync_folder))
+
+    def update_status_text(self, new_status):
+        self.text_status['state'] = 'normal'
+        self.text_status.delete("1.0", tk.END)
+        self.text_status.insert("1.0", new_status)
+        self.text_status['state'] = 'disabled'
+
     def run(self):
         self.root.mainloop()
 
@@ -639,6 +672,12 @@ class SyncUI:
                 messagebox.showerror("Print Error", f"Failed to start print:\n{result}")
             else:
                 messagebox.showinfo("Print Started", f"Print job for '{filename}' started successfully.")
+                self.set_controls_enabled(False)
+                self.update_status_text(f"Printing {filename}: 0%")
+                self.agent.current_printing_file = filename
+                self.progress_var.set(0)
+                self.bar_upload_print.pack()
+                self.start_upload_progress()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to send print command:\n{e}")
 
@@ -666,6 +705,50 @@ class SyncUI:
             self.agent.config["ping_interval_minutes"] = val
             self.agent.save_config()
             messagebox.showinfo("Ping Interval Changed", f"Ping interval set to {val} minutes.")
+    
+    def set_controls_enabled(self, enabled: bool):
+        state = tk.NORMAL if enabled else tk.DISABLED
+        self.btn_refresh.config(state=state)
+        self.btn_print.config(state=state)
+        self.btn_sync_now.config(state=state)
+        self.speed_slider.config(state=state)
+        self.delay_entry.config(state=state)
+
+    def start_upload_progress(self):
+        self.set_controls_enabled(False)
+        self.progress_var.set(0)
+        self.bar_upload_print.pack()
+
+        def poll_progress(self):
+            try:
+                if (self.agent.printing_paused):
+                    progress = int(self.agent.printer.printingPercent()[1])
+                    if progress < 100:
+                        self.update_status_text(f"Printing {self.agent.current_printing_file}: {progress}%")
+                        self.progress_var.set(progress)
+                        self.root.after(200, self.poll_progress)
+                    else:
+                        self.set_controls_enabled(True)
+                        self.bar_upload_print.pack_forget()
+                        self.update_status_text("Printing Complete!")
+                        self.agent.printing_paused = False
+                else:
+                    filelength = self.agent.printer.filelength
+                    remaining = self.agent.printer.remaining
+                    if remaining > 0:
+                        progress = 1 - remaining / filelength
+                        self.progress_var.set(int(progress * 100))
+                        self.update_status_text(f"Uploading {self.agent.current_printing_file}, {filelength - remaining}/{filelength}")
+                        self.root.after(200, self.poll_progress)
+                    else:
+                        self.set_controls_enabled(True)
+                        self.bar_upload_print.pack_forget()
+                        self.update_status_text("Upload Complete!")
+            except Exception:
+                self.set_controls_enabled(True)
+                self.bar_upload_print.pack_forget()
+
+        poll_progress()
 
 def main():
     agent = SyncAgent()
