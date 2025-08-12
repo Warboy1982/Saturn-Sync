@@ -546,9 +546,9 @@ class SyncUI:
         self.progress_var = tk.DoubleVar()
         bar_frame = tk.Frame(self.root)
         self.bar_upload_print = ttk.Progressbar(bar_frame, orient="horizontal", mode="determinate", length=200, variable=self.progress_var, maximum=100)
-        self.bar_upload_print.pack(side=tk.RIGHT)
+        self.bar_upload_print.pack(side=tk.BOTTOM)
         self.text_status = tk.Text(bar_frame, height=1, width=40, wrap="none", background="systemButtonFace", relief="flat")
-        self.text_status.pack(side=tk.LEFT)
+        self.text_status.pack(side=tk.TOP)
         self.text_status.insert(1.0, self.agent.status)
         self.text_status['state'] = 'disabled'
 
@@ -718,39 +718,37 @@ class SyncUI:
         self.set_controls_enabled(False)
         self.progress_var.set(0)
         self.bar_upload_print.pack()
+        self.poll_progress()
 
-        def poll_progress(self):
-            try:
-                if (self.agent.printing_paused):
-                    progress = int(self.agent.printer.printingPercent()[1])
-                    if progress < 100:
-                        self.update_status_text(f"Printing {self.agent.current_printing_file}: {progress}%")
-                        self.progress_var.set(progress)
-                    else:
-                        self.set_controls_enabled(True)
-                        self.bar_upload_print.pack_forget()
-                        self.update_status_text("Printing Complete!")
-                        self.agent.printing_paused = False
-                        self.agent.current_printing_file = ""
+    def poll_progress(self):
+        try:
+            if (self.agent.printing_paused):
+                progress = int(self.agent.printer.printingPercent()[1])
+                if progress < 100:
+                    self.update_status_text(f"Printing {self.agent.current_printing_file}: {progress}%")
+                    self.progress_var.set(progress)
                 else:
-                    filelength = self.agent.printer.filelength
-                    remaining = self.agent.printer.remaining
-                    if remaining > 0:
-                        progress = 1 - remaining / filelength
-                        self.progress_var.set(int(progress * 100))
-                        self.update_status_text(f"Uploading {self.agent.current_printing_file}, {filelength - remaining}/{filelength}")
-                    else:
-                        self.set_controls_enabled(True)
-                        self.bar_upload_print.pack_forget()
-                        self.update_status_text("Upload Complete!")
-            except Exception:
+                    self.update_status_text("Printing Complete!")
+                    self.agent.printing_paused = False
+                    self.agent.current_printing_file = ""
+            else:
+                filelength = self.agent.printer.filelength
+                remaining = self.agent.printer.remaining
+                if remaining > 0:
+                    progress = 1 - remaining / filelength
+                    self.progress_var.set(int(progress * 100))
+                    self.update_status_text(f"Uploading {self.agent.current_printing_file[:10]}, {filelength - remaining}/{filelength}")
+                else:
+                    self.update_status_text("Upload Complete!")
+        except Exception:
+            self.set_controls_enabled(True)
+            self.bar_upload_print.pack_forget()
+        finally:
+            if self.agent.current_printing_file != "":
+                self.root.after(200, self.poll_progress)
+            else:
                 self.set_controls_enabled(True)
                 self.bar_upload_print.pack_forget()
-            finally:
-                if self.agent.current_printing_file != "":
-                    self.root.after(200, self.poll_progress)
-
-        poll_progress(self)
 
 def main():
     agent = SyncAgent()
