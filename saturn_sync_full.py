@@ -217,7 +217,7 @@ class SyncAgent:
         # Check printing status
         try:
             printing_state = self.printer.printingStatus()
-            if printing_state == "Printing":
+            if printing_state.startswith("Printing"):
                 self.printing_paused = True
                 self.update_status("synced")
                 return
@@ -342,7 +342,7 @@ class SyncAgent:
         path = Path(self.sync_folder) / filename
         try:
             # Check printing status before upload
-            if self.printer.printingStatus() == "Printing":
+            if self.printer.printingStatus().startswith("Printing"):
                 # Defer upload
                 self.printing_paused = True
                 return
@@ -631,7 +631,7 @@ class SyncUI:
         try:
             # Check if printer busy
             status = self.agent.printer.printingStatus()
-            if status == "Printing":
+            if status.startswith("Printing"):
                 messagebox.showwarning("Printer Busy", "Printer is currently printing. Cannot start new print.")
                 return
             result = self.agent.printer.startPrinting(filename)

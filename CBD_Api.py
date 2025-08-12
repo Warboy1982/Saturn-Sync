@@ -176,7 +176,7 @@ class Printer():
         if string == "Error:It's not printing now!":
             return "Not Printing"
         elif string.split()[0] == "SD":
-            return "Printing"
+            return f"Printing {string}"
         else:
             return self.printingStatus() # purge buffer until we get a meaningful response
 
