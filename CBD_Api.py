@@ -16,6 +16,9 @@ class Printer():
         self.buffSize = 4096
         self.jobs = Queue()
         self.send_delay = 0.005
+        self.retries = 0
+        self.remaining = 0
+        self.filelength = 0
         
     def __sendRecieveSingle__(self,code,buffSize=-1) -> str: # sends an M-code then recieves a single packet answer
         self.sock.sendto(bytes(code, "utf-8"), (self.ip, self.port))
@@ -219,16 +222,16 @@ class Printer():
         if "Error" in m28 or "Failed" in m28:
             return f"M28 Error: {m28}"
         
-        l=os.stat(fileNameLocal).st_size
+        self.filelength=os.stat(fileNameLocal).st_size
         self.__clearBuffer__()
         f=open(fileNameLocal,'rb')
-        remain=l
+        self.remaining=self.filelength
         offs=0
         retr=0
-        print(fileNameCard,' Length:',l)
+        print(fileNameCard,' Length:',self.filelength)
         send = True
         readamt = 1280
-        while remain > 0:
+        while self.remaining > 0:
             if send:
                 f.seek(offs)
                 dd=f.read(readamt)
@@ -244,7 +247,7 @@ class Printer():
                 readamt = 1280
                 if send:
                     offs=offs+len(dd)
-                    remain=remain-len(dd)
+                    self.remaining -= len(dd)
                 else:
                     send = True
             elif s.split()[0] == b"resend":
@@ -255,17 +258,25 @@ class Printer():
                 offs_str = parts[2].split(":")[1]
                 readamt = int(amt_str)
                 offs = int(offs_str)
-                remain = l - offs
+                self.remaining = self.filelength - offs
                 retr += 1
                 send = True
             else:
                 send = False # garbage message, probably, "it's not printing now!"
-            print(retr,remain,end='   \r')
+            print(retr,self.remaining,end='   \r')
             sleep(self.send_delay)
         f.close()
-        m4012 = self.__sendRecieveSingleNice__(f"M4012 I1 T{l}")
-        if m4012.split()[0] != "ok":
-            return f"Size Verify Error: {m4012}"
+
+        self.filelength = 0
+        self.remaining = 0
+
+        M4012 = self.__sendRecieveSingleNice__(f"M4012 I1 T{self.filelength}")
+        if M4012.split()[0] != "ok":
+            retstring = ""
+            if retr > 0:
+                retstring = f"{retr} Transfer Error(s): Consider increasing send delay.\n"
+            retstring = retstring + f"Size Verify Error: {M4012}"
+            return retstring
 
         return self.__sendRecieveSingleNice__("M29")
 
