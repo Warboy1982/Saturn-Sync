@@ -409,7 +409,7 @@ class SyncAgent:
             self.syncing_files.discard(filename)
             self.update_status("synced")
             if self.ui:
-                self.ui.root.after(0, lambda: self.ui.progress_bar.pack_forget())
+                self.ui.root.after(0, lambda: self.ui.bar_upload_print.pack_forget())
                 self.ui.root.after(0, lambda: self.ui.set_controls_enabled(True))
                 self.ui.root.after(0, self.ui.refresh_file_list)
 
@@ -726,12 +726,12 @@ class SyncUI:
                     if progress < 100:
                         self.update_status_text(f"Printing {self.agent.current_printing_file}: {progress}%")
                         self.progress_var.set(progress)
-                        self.root.after(200, self.poll_progress)
                     else:
                         self.set_controls_enabled(True)
                         self.bar_upload_print.pack_forget()
                         self.update_status_text("Printing Complete!")
                         self.agent.printing_paused = False
+                        self.agent.current_printing_file = ""
                 else:
                     filelength = self.agent.printer.filelength
                     remaining = self.agent.printer.remaining
@@ -739,7 +739,6 @@ class SyncUI:
                         progress = 1 - remaining / filelength
                         self.progress_var.set(int(progress * 100))
                         self.update_status_text(f"Uploading {self.agent.current_printing_file}, {filelength - remaining}/{filelength}")
-                        self.root.after(200, self.poll_progress)
                     else:
                         self.set_controls_enabled(True)
                         self.bar_upload_print.pack_forget()
@@ -747,8 +746,11 @@ class SyncUI:
             except Exception:
                 self.set_controls_enabled(True)
                 self.bar_upload_print.pack_forget()
+            finally:
+                if self.agent.current_printing_file != "":
+                    self.root.after(200, self.poll_progress)
 
-        poll_progress()
+        poll_progress(self)
 
 def main():
     agent = SyncAgent()
