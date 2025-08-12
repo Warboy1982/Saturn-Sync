@@ -516,11 +516,12 @@ class SyncUI:
 
         speed_frame = tk.Frame(self.root)
 
-        self.speed_slider = tk.Scale(speed_frame, from_=0.0, to=0.2, resolution=0.001, orient=tk.HORIZONTAL, label="Send Delay (sec)", length=200, showvalue=False, variable=self.agent.printer.send_delay)
+        self.slider_pos = tk.DoubleVar(value=self.agent.config["send_delay"])
+        self.speed_slider = tk.Scale(speed_frame, from_=0.0, to=0.2, resolution=0.001, orient=tk.HORIZONTAL, label="Send Delay (sec)", length=200, showvalue=False, variable=self.slider_pos)
         self.speed_slider.pack(side=tk.LEFT)
 
         self.delay_entry = tk.Entry(speed_frame, width=6)
-        self.delay_entry.insert(0, f"{self.agent.config["send_delay"]}")
+        self.delay_entry.insert(0, f"{self.agent.config['send_delay']}")
         self.delay_entry.pack(side=tk.LEFT, padx=(5, 0))
 
         self.btn_sync_now = tk.Button(btn_frame, text="Manual Sync Now", command=self.agent.manual_sync)
@@ -541,7 +542,7 @@ class SyncUI:
             try:
                 value = float(self.delay_entry.get())
                 value = max(0.0, min(0.2, value))
-                self.speed_slider.set(value)
+                self.slider_pos.set(value)
                 self.agent.printer.send_delay = value
                 self.agent.config["send_delay"] = value
                 self.agent.save_config()
