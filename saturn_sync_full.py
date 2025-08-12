@@ -28,6 +28,7 @@ DEFAULT_CONFIG = {
     "printer_ip": "192.168.0.230",
     "sync_folder": str(Path.home() / "ElegooSaturnSync"),
     "ping_interval_minutes": 1,
+    "send_delay": 0.005,
     "log_unknown_messages": False  # Hidden, must edit config file manually
 }
 
@@ -102,6 +103,7 @@ class SyncAgent:
         self.printer = Printer(self.config["printer_ip"])
         self.sync_folder = Path(self.config["sync_folder"])
         self.ping_interval = self.config["ping_interval_minutes"] * 60
+        self.printer.send_delay = self.config["send_delay"] * 1.0
 
         self.log_unknown = self.config.get("log_unknown_messages", False)
 
@@ -509,13 +511,46 @@ class SyncUI:
         btn_frame.pack(fill=tk.X, padx=10, pady=5)
 
         self.btn_refresh = tk.Button(btn_frame, text="Refresh File List", command=self.refresh_file_list)
-        self.btn_refresh.pack(side=tk.LEFT, padx=5)
 
         self.btn_print = tk.Button(btn_frame, text="Print Selected File", command=self.print_selected_file)
-        self.btn_print.pack(side=tk.LEFT, padx=5)
+
+        speed_frame = tk.Frame(self.root)
+
+        self.speed_slider = tk.Scale(speed_frame, from_=0.0, to=0.2, resolution=0.001, orient=tk.HORIZONTAL, label="Send Delay (sec)", length=200, showvalue=False, variable=self.agent.printer.send_delay)
+        self.speed_slider.pack(side=tk.LEFT)
+
+        self.delay_entry = tk.Entry(speed_frame, width=6)
+        self.delay_entry.insert(0, f"{self.agent.config["send_delay"]}")
+        self.delay_entry.pack(side=tk.LEFT, padx=(5, 0))
 
         self.btn_sync_now = tk.Button(btn_frame, text="Manual Sync Now", command=self.agent.manual_sync)
+
+        self.btn_refresh.pack(side=tk.LEFT, padx=5)
+        self.btn_print.pack(side=tk.LEFT, padx=5)
+        speed_frame.pack(side=tk.LEFT, padx=5, pady=5)
         self.btn_sync_now.pack(side=tk.RIGHT, padx=5)
+        def update_from_slider(value):
+            value = float(value)
+            self.delay_entry.delete(0, tk.END)
+            self.delay_entry.insert(0, f"{value:.3f}")
+            self.agent.printer.send_delay = value
+            self.agent.config["send_delay"] = value
+            self.agent.save_config()
+
+        def update_from_entry(event):
+            try:
+                value = float(self.delay_entry.get())
+                value = max(0.0, min(0.2, value))
+                self.speed_slider.set(value)
+                self.agent.printer.send_delay = value
+                self.agent.config["send_delay"] = value
+                self.agent.save_config()
+            except ValueError:
+                pass
+
+        self.speed_slider.config(command=update_from_slider)
+        self.delay_entry.bind("<Return>", update_from_entry)
+        self.delay_entry.bind("<FocusOut>", update_from_entry)
 
         # Config menu
         menubar = tk.Menu(self.root)

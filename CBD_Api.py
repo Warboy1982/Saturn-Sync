@@ -4,6 +4,7 @@ from datetime import datetime as dt
 import os
 from queue import Queue
 
+
 class Printer():
     def __init__(self, ip) -> None:
         if ip == "127.0.0.1":
@@ -14,6 +15,7 @@ class Printer():
         self.sock.settimeout(20)
         self.buffSize = 4096
         self.jobs = Queue()
+        self.send_delay = 0.005
         
     def __sendRecieveSingle__(self,code,buffSize=-1) -> str: # sends an M-code then recieves a single packet answer
         self.sock.sendto(bytes(code, "utf-8"), (self.ip, self.port))
@@ -259,7 +261,7 @@ class Printer():
             else:
                 send = False # garbage message, probably, "it's not printing now!"
             print(retr,remain,end='   \r')
-            #sleep(0.01)
+            sleep(self.send_delay)
         f.close()
         m4012 = self.__sendRecieveSingleNice__(f"M4012 I1 T{l}")
         if m4012.split()[0] != "ok":
