@@ -514,6 +514,8 @@ class SyncUI:
 
         self.btn_print = tk.Button(btn_frame, text="Print Selected File", command=self.print_selected_file)
 
+        self.btn_open_folder = tk.Button(btn_frame, text="Open Sync Folder", command=self.open_folder)
+
         speed_frame = tk.Frame(self.root)
 
         self.slider_pos = tk.DoubleVar(value=self.agent.config["send_delay"])
@@ -528,8 +530,9 @@ class SyncUI:
 
         self.btn_refresh.pack(side=tk.LEFT, padx=5)
         self.btn_print.pack(side=tk.LEFT, padx=5)
-        speed_frame.pack(side=tk.LEFT, padx=5, pady=5)
         self.btn_sync_now.pack(side=tk.RIGHT, padx=5)
+        self.btn_open_folder.pack(side=tk.RIGHT, padx=5)
+        speed_frame.pack(side=tk.LEFT, padx=5, pady=5)
         def update_from_slider(value):
             value = float(value)
             self.delay_entry.delete(0, tk.END)
@@ -564,6 +567,8 @@ class SyncUI:
 
         self.refresh_file_list()
 
+    def open_folder(self):
+        os.startfile(Path(self.agent.sync_folder))
     def run(self):
         self.root.mainloop()
 
