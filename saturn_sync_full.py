@@ -744,6 +744,20 @@ class SyncUI:
         self.bar_upload_print.pack()
         self.poll_progress()
 
+    def volume_curved_percent(self, p: float) -> float:
+        x = max(0.0, min(100.0, p)) / 100.0
+        # cubic skew: last 2% gets ~20% of the display
+        # very hacky but it'll account for the inaccuracy
+        # of trying to do a % based on byte comparison
+        # more white pixels/complexity in a layer = more bytes
+        # average model will have significantly less geometry
+        # in the top fifth compared to the rest of the model
+        # due to assumed lack of supports needed
+        # end of the day, the last 2% of the file accounted for
+        # about 20% of my final layers, in testing,
+        # so i'm adjusting it based on that
+        return (3*x**2 - 2*x**3) * 100
+
     def poll_progress(self):
         try:
             if (self.agent.printing_paused):
@@ -754,7 +768,7 @@ class SyncUI:
                         filenameshort = filenameshort[:15]
                         filenameshort += "..."
                     progressString=progressString.split()[4] # we only want the x/y portion
-                    progress=(int)(progressString.split("/")[0]) / (int)(progressString.split("/")[1]) * 100
+                    progress=self.volume_curved_percent((float)(progressString.split("/")[0]) / (float)(progressString.split("/")[1]) * 100)
                     self.update_status_text(f"Printing {filenameshort}: {round(progress, 2)}%")
                     self.progress_var.set(progress)
                 else:
