@@ -7,7 +7,7 @@ mars line of printers as well.
 
 .ctb files are automatically transferred without user interaction.
 
-any additions, deletions or updates to .cbd files in the local folder will also happen on your printer's usb stick.
+any additions, deletions or updates to .ctb files in the local folder will also happen on your printer's usb stick.
 
 allows remote triggering of print jobs.
 
