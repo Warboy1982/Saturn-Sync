@@ -538,7 +538,7 @@ class SyncUI:
         self.progress_var = tk.DoubleVar()
         bar_frame = tk.Frame(self.root)
 
-        self.text_status = tk.Text(bar_frame, height=1, width=40, wrap="none", background="systemButtonFace", relief="flat")
+        self.text_status = tk.Text(bar_frame, height=1, width=42, wrap="none", background="systemButtonFace", relief="flat")
         self.text_status.pack(side=tk.LEFT, padx=10)
         self.text_status.insert(1.0, self.agent.status)
         self.text_status['state'] = 'disabled'
@@ -743,8 +743,8 @@ class SyncUI:
                 progress = int(self.agent.printer.printingPercent()[1])
                 if progress < 100:
                     filenameshort = self.agent.current_printing_file
-                    if len(filenameshort) > 20:
-                        filenameshort = filenameshort[17]
+                    if len(filenameshort) > 18:
+                        filenameshort = filenameshort[:15]
                         filenameshort += "..."
                     self.update_status_text(f"Printing {filenameshort}: {progress}%")
                     self.progress_var.set(progress)
@@ -759,10 +759,10 @@ class SyncUI:
                     progress = 1 - remaining / filelength
                     self.progress_var.set(int(progress * 100))
                     filenameshort = self.agent.current_printing_file
-                    if len(filenameshort) > 20:
-                        filenameshort = filenameshort[17]
+                    if len(filenameshort) > 18:
+                        filenameshort = filenameshort[:15]
                         filenameshort += "..."
-                    self.update_status_text(f"Uploading {filenameshort}, {filelength - remaining}/{filelength}")
+                    self.update_status_text(f"Uploading {filenameshort} {int((filelength - remaining)/1024)}/{int(filelength/1024)} kb")
                 else:
                     self.update_status_text("Upload Complete!")
         except Exception:
@@ -776,6 +776,7 @@ class SyncUI:
                 self.set_controls_enabled(True)
                 self.progress_var.set(0)
                 self.bar_upload_print.pack()
+                self.refresh_file_list()
 
 def main():
     agent = SyncAgent()
