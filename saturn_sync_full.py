@@ -225,7 +225,10 @@ class SyncAgent:
             self.update_status("printing")
             return
         self.update_status("synced")  # Assume synced before syncing
-
+        printJob = self.printer.printingStatus()
+        if (printJob != "Not Printing"):
+            self.update_status("printing")
+            self.current_printing_file = printJob.split(1)
         self.sync_all()
 
     def ping_printer(self):
