@@ -233,7 +233,7 @@ class SyncAgent:
 
     def ping_printer(self):
         #safeguard against a ping request messing up a send
-        if self.current_uploading_file == "" and self.current_printing_file == "":
+        if self.current_uploading_file == "" and not self.printing_paused:
             try:
                 ver = self.printer.getVer()
                 # If getVer succeeds, printer is online
@@ -749,7 +749,7 @@ class SyncUI:
                         filenameshort += "..."
                     progressString=progressString.split()[4] # we only want the x/y portion
                     progress=(int)(progressString.split("/")[0]) / (int)(progressString.split("/")[1]) * 100
-                    self.update_status_text(f"Printing {filenameshort}: {(int)(progress)}%")
+                    self.update_status_text(f"Printing {filenameshort}: {round(progress, 2)}%")
                     self.progress_var.set(progress)
                 else:
                     self.update_status_text("Printing Complete!")
