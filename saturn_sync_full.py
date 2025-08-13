@@ -713,7 +713,7 @@ class SyncUI:
 
     def set_send_delay(self):
         val = tk.simpledialog.askinteger("Transfer Interval", "Enter interval between file chunk transfer attempts in ms (0 to disable):",
-                                         initialvalue=self.agent.send_delay * 1000, minvalue=0)
+                                         initialvalue=int(self.agent.printer.send_delay * 1000), minvalue=0)
         if val is not None:
             if val > 1000:
                 val = 1000
