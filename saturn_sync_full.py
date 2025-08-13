@@ -243,6 +243,8 @@ class SyncAgent:
         return True
 
     def sync_all(self):
+        if self.printing_paused:
+            return
         with self.sync_lock:
             self.update_status("syncing")
 
@@ -427,14 +429,14 @@ class SyncAgent:
         if new_status == self.status:
             return
         self.status = new_status
-        if self.ui and self.current_uploading_file == "" and self.current_printing_file == "": # let the UI handle its own messages if it's uploading or printing
+        if self.ui and self.current_uploading_file == "" and not self.printing_paused: # let the UI handle its own messages if it's uploading or printing
             self.ui.update_status_text(new_status)
         self.update_tray_icon(new_status)
         self.update_tray_tooltip()
 
     def update_tray_icon(self, new_status):
         if self.tray_icon:
-            icon_image = self.icon_images.get(self.status, self.icon_images[new_status])
+            icon_image = self.icon_images.get(new_status)
             self.tray_icon.icon = icon_image
 
     def update_tray_tooltip(self):
@@ -444,6 +446,7 @@ class SyncAgent:
                 "syncing": f"Saturn Sync Agent - Syncing\nFiles syncing: {len(self.syncing_files)}",
                 "synced": f"Saturn Sync Agent - Synced\nPrinter IP: {self.config['printer_ip']}",
                 "error": f"Saturn Sync Agent - Error\nPending errors: {len(self.error_files)}",
+                "printing": f"Saturn Sync Agent - Printing\n{self.current_printing_file}",
             }
             tooltip = tooltips.get(self.status, "Saturn Sync Agent")
             self.tray_icon.title = tooltip
@@ -459,9 +462,12 @@ class SyncAgent:
 
         # Start tray icon
         self.setup_tray_icon()
-
+        
         # Start Tkinter UI on main thread
         self.setup_ui()
+
+        # Force initial detection
+        self.ping_and_sync()
 
     def stop(self):
         self.stop_event.set()
