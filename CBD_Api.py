@@ -24,21 +24,21 @@ class Printer():
         self.sock.sendto(bytes(code, "utf-8"), (self.ip, self.port))
         if buffSize == -1:
             buffSize = self.buffSize
-        output = self.sock.recv(buffSize)
-
-        return output
+        try:
+            output = self.sock.recv(buffSize)
+        except: # maybe printer needed a sec longer, retry on fail
+            output = self.sock.recv(buffSize)
+        finally:
+            return output
+        
         
     def __clearBuffer__(self) -> None:
         output = ""
         while True:
-            chunk = self.sock.recv(self.buffSize)
-            if not chunk:
+            try:
+                output = self.sock.recv(self.buffSize)
+            except:
                 break  # connection closed or no more data
-            output += chunk.decode('utf-8', errors='ignore')
-            lines = output.split("\n")
-            for line in lines:
-                if line.strip() == "ok N:0":
-                    return
 
     def __sendRecieveSingleNice__(self,code, buffSize=-1) -> str: # sends an M-code then recieves a single packet answer
         if buffSize == -1:
@@ -51,8 +51,6 @@ class Printer():
         if not output:
             return "No Response"
         else:
-            if not output.startswith('V'):
-                output = (str)(self.sock.recv(self.buffSize)).split(" ")[split].split(":")[1]
             return output
 
     def getVer(self) -> str:
@@ -105,7 +103,7 @@ class Printer():
                     output.append(self.__stripSpaceFromBack__(request))
 
             request = self.__stripFormatting__((self.sock.recv(self.buffSize)))
-            
+        confirmation = self.sock.recv(self.buffSize) #absorb the ok message
         return(output)
     
     def homeAxis(self) -> None:
@@ -177,8 +175,10 @@ class Printer():
             string = self.__sendRecieveSingleNice__("M27")
         except:
             return "Not Printing"
+
         if string.split()[0] == "SD":
             return f"Printing {string}"
+        confirmation = self.sock.recv(self.buffSize) #absorb the ok message after our error message
         return "Not Printing"
 
     def printingPercent(self) -> list:
@@ -221,10 +221,10 @@ class Printer():
         # start transmission
         m28 = self.__sendRecieveSingleNice__(f"M28 {fileNameCard}")
         if "Error" in m28 or "Failed" in m28:
+            confirmation = self.sock.recv(self.buffSize) #absorb the ok message after our error message
             return f"M28 Error: {m28}"
         
         self.filelength=os.stat(fileNameLocal).st_size
-        self.__clearBuffer__()
         f=open(fileNameLocal,'rb')
         self.remaining=self.filelength
         offs=0
@@ -263,7 +263,7 @@ class Printer():
                 retr += 1
                 send = True
             else:
-                send = False # garbage message, probably, "it's not printing now!"
+                send = False # garbage message? 
             print(retr,self.remaining,end='   \r')
             sleep(self.send_delay)
         f.close()
@@ -277,6 +277,7 @@ class Printer():
             if retr > 0:
                 retstring = f"{retr} Transfer Error(s): Consider increasing send delay.\n"
             retstring = retstring + f"Size Verify Error: {M4012}"
+            confirmation = self.sock.recv(self.buffSize) #absorb the ok message after our error message
             return retstring
 
         return self.__sendRecieveSingleNice__("M29")

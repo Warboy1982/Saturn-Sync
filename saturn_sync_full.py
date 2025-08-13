@@ -661,6 +661,7 @@ class SyncUI:
             return
         filename = self.file_listbox.get(sel[0])
         if not filename.startswith("✔ "):
+            messagebox.showwarning("File not synced", "Please wait for file sync.")
             return
         filename = filename[2:]
         # Confirm
