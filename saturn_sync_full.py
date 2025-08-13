@@ -93,6 +93,10 @@ def overlay_icon(base_icon, overlay_type):
         cx = x0 + badge_size/2
         cy = y1 - 6
         draw.ellipse([cx-dot_radius, cy-dot_radius, cx+dot_radius, cy+dot_radius], fill="black")
+    elif overlay_type == "printing":
+        # Two vertical blue bars (pause)
+        draw.line([(x0+3, y0),(x0+3, y1)], fill="blue", width=5)
+        draw.line([(x1-3, y0),(x1-3, y1)], fill="blue", width=5)
     return icon
 
 class SyncAgent:
@@ -118,6 +122,7 @@ class SyncAgent:
         self.status = "offline"  # offline, syncing, synced, error
         self.error_files = set()
         self.syncing_files = set()
+        self.current_uploading_file = ""
         self.current_printing_file = ""
 
         self.pending_uploads = Queue()
@@ -129,6 +134,7 @@ class SyncAgent:
             "syncing": overlay_icon(self.icon_base, "syncing"),
             "synced": overlay_icon(self.icon_base, "synced"),
             "error": overlay_icon(self.icon_base, "error"),
+            "printing": overlay_icon(self.icon_base, "printing")
         }
 
         # Tray icon related
@@ -212,6 +218,12 @@ class SyncAgent:
         if not self.ping_printer():
             self.update_status("offline")
             return
+        if self.current_uploading_file != "":
+            self.update_status("syncing")
+            return
+        if self.current_printing_file != "":
+            self.update_status("printing")
+            return
         self.update_status("synced")  # Assume synced before syncing
 
         # Check printing status
@@ -219,7 +231,7 @@ class SyncAgent:
             printing_state = self.printer.printingStatus()
             if printing_state.startswith("Printing"):
                 self.printing_paused = True
-                self.update_status("synced")
+                self.update_status("printing")
                 return
             else:
                 if self.printing_paused:
@@ -236,12 +248,15 @@ class SyncAgent:
         self.sync_all()
 
     def ping_printer(self):
-        try:
-            ver = self.printer.getVer()
-            # If getVer succeeds, printer is online
-            return True
-        except Exception:
-            return False
+        #safeguard against a ping request messing up a send
+        if self.current_uploading_file == "" and self.current_printing_file == "":
+            try:
+                ver = self.printer.getVer()
+                # If getVer succeeds, printer is online
+                return True
+            except Exception:
+                return False
+        return True
 
     def sync_all(self):
         with self.sync_lock:
@@ -376,7 +391,7 @@ class SyncAgent:
             else:
                 self.update_status("error")
                 return
-            self.current_printing_file = filename
+            self.current_uploading_file = filename
             if self.ui:
                 self.ui.set_controls_enabled(False)
                 self.ui.update_status_text(f"Uploading {filename}, 0/{os.stat(str(path)).st_size}")
@@ -405,7 +420,7 @@ class SyncAgent:
             self.handle_error(f"Upload exception: {e}")
             self.ui.update_status_text("Upload Failed!")
         finally:
-            self.current_printing_file = ""
+            self.current_uploading_file = ""
             self.syncing_files.discard(filename)
             self.update_status("synced")
             if self.ui:
@@ -428,7 +443,7 @@ class SyncAgent:
         if new_status == self.status:
             return
         self.status = new_status
-        if self.ui and self.current_printing_file == "":
+        if self.ui and self.current_uploading_file == "" and self.current_printing_file == "": # let the UI handle its own messages if it's uploading or printing
             self.ui.update_status_text(new_status)
         self.update_tray_icon(new_status)
         self.update_tray_tooltip()
@@ -758,7 +773,7 @@ class SyncUI:
                 if remaining > 0:
                     progress = 1 - remaining / filelength
                     self.progress_var.set(int(progress * 100))
-                    filenameshort = self.agent.current_printing_file
+                    filenameshort = self.agent.current_uploading_file
                     if len(filenameshort) > 18:
                         filenameshort = filenameshort[:15]
                         filenameshort += "..."
@@ -770,7 +785,7 @@ class SyncUI:
             self.progress_var.set(0)
             self.bar_upload_print.pack()
         finally:
-            if self.agent.current_printing_file != "":
+            if self.agent.current_printing_file != "" and self.agent.current_uploading_file != "":
                 self.root.after(200, self.poll_progress)
             else:
                 self.set_controls_enabled(True)
