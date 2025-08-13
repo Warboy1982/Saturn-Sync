@@ -532,56 +532,24 @@ class SyncUI:
 
         self.btn_open_folder = tk.Button(btn_frame, text="Open Sync Folder", command=self.open_folder)
 
-        speed_frame = tk.Frame(self.root)
-
-        self.delay_entry = tk.Entry(speed_frame, width=6)
-        self.delay_entry.insert(0, f"{self.agent.config['send_delay']}")
-        self.delay_entry.pack(side=tk.LEFT, padx=(5, 0))
-
-        self.slider_pos = tk.DoubleVar(value=self.agent.config["send_delay"])
-        self.speed_slider = tk.Scale(speed_frame, from_=0.0, to=0.2, resolution=0.001, orient=tk.HORIZONTAL, label="Send Delay (sec)", length=200, showvalue=False, variable=self.slider_pos)
-        self.speed_slider.pack(side=tk.LEFT)
-
         self.btn_sync_now = tk.Button(btn_frame, text="Manual Sync Now", command=self.agent.manual_sync)
         
         self.progress_var = tk.DoubleVar()
         bar_frame = tk.Frame(self.root)
-        self.bar_upload_print = ttk.Progressbar(bar_frame, orient="horizontal", mode="determinate", length=200, variable=self.progress_var, maximum=100)
-        self.bar_upload_print.pack(side=tk.BOTTOM)
+
         self.text_status = tk.Text(bar_frame, height=1, width=40, wrap="none", background="systemButtonFace", relief="flat")
-        self.text_status.pack(side=tk.TOP)
+        self.text_status.pack(side=tk.LEFT, padx=10)
         self.text_status.insert(1.0, self.agent.status)
         self.text_status['state'] = 'disabled'
+
+        self.bar_upload_print = ttk.Progressbar(bar_frame, orient="horizontal", mode="determinate", length=400, variable=self.progress_var, maximum=100)
+        self.bar_upload_print.pack(side=tk.RIGHT, padx=10)
 
         self.btn_print.pack(side=tk.LEFT, padx=5)
         self.btn_sync_now.pack(side=tk.RIGHT, padx=5)
         self.btn_refresh.pack(side=tk.RIGHT, padx=5)
         self.btn_open_folder.pack(side=tk.RIGHT, padx=5)
-        speed_frame.pack(side=tk.LEFT, padx=5, pady=5)
         bar_frame.pack(side=tk.RIGHT, padx=5, pady=5)
-
-        def update_from_slider(value):
-            value = float(value)
-            self.delay_entry.delete(0, tk.END)
-            self.delay_entry.insert(0, f"{value:.3f}")
-            self.agent.printer.send_delay = value
-            self.agent.config["send_delay"] = value
-            self.agent.save_config()
-
-        def update_from_entry(event):
-            try:
-                value = float(self.delay_entry.get())
-                value = max(0.0, min(0.2, value))
-                self.slider_pos.set(value)
-                self.agent.printer.send_delay = value
-                self.agent.config["send_delay"] = value
-                self.agent.save_config()
-            except ValueError:
-                pass
-
-        self.speed_slider.config(command=update_from_slider)
-        self.delay_entry.bind("<Return>", update_from_entry)
-        self.delay_entry.bind("<FocusOut>", update_from_entry)
 
         # Config menu
         menubar = tk.Menu(self.root)
@@ -589,6 +557,7 @@ class SyncUI:
         config_menu.add_command(label="Change Sync Folder", command=self.change_sync_folder)
         config_menu.add_command(label="Change Printer IP", command=self.change_printer_ip)
         config_menu.add_command(label="Set Ping Interval", command=self.set_ping_interval)
+        config_menu.add_command(label="Set Transfer Delay", command=self.set_send_delay)
         menubar.add_cascade(label="Config", menu=config_menu)
         self.root.config(menu=menubar)
 
@@ -741,7 +710,20 @@ class SyncUI:
             self.agent.config["ping_interval_minutes"] = val
             self.agent.save_config()
             messagebox.showinfo("Ping Interval Changed", f"Ping interval set to {val} minutes.")
-    
+
+    def set_send_delay(self):
+        val = tk.simpledialog.askinteger("Transfer Interval", "Enter interval between file chunk transfer attempts in ms (0 to disable):",
+                                         initialvalue=self.agent.send_delay * 1000, minvalue=0)
+        if val is not None:
+            if val > 1000:
+                val = 1000
+
+            value = float(val) / 1000.0
+            self.agent.printer.send_delay = value
+            self.agent.config["send_delay"] = value
+            self.agent.save_config()
+            messagebox.showinfo("Transfer Interval Changed", f"Transfer interval set to {val} ms.")
+
     def set_controls_enabled(self, enabled: bool):
         state = tk.NORMAL if enabled else tk.DISABLED
         self.btn_refresh.config(state=state)
