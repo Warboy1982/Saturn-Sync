@@ -26,7 +26,7 @@ LOG_UNKNOWN_FILE = "unknown_printer_msgs.log"
 # Default config values
 DEFAULT_CONFIG = {
     "printer_ip": "192.168.0.230",
-    "sync_folder": str(Path.home() / "ElegooSaturnSync"),
+    "sync_folder": str(Path.home() / "SaturnSync"),
     "ping_interval_minutes": 1,
     "send_delay": 0.005,
     "log_unknown_messages": False  # Hidden, must edit config file manually
@@ -416,7 +416,7 @@ class SyncAgent:
     def handle_error(self, message):
         self.error_files.add(message)
         self.update_status("error")
-        self.show_balloon("Elegoo Saturn Sync Agent - Error", message)
+        self.show_balloon("Saturn Sync Agent - Error", message)
 
     def show_balloon(self, title, msg):
         # Platform specific balloon notification via pystray
@@ -440,12 +440,12 @@ class SyncAgent:
     def update_tray_tooltip(self):
         if self.tray_icon:
             tooltips = {
-                "offline": f"Elegoo Saturn Sync Agent - Offline\nPrinter IP: {self.config['printer_ip']}",
-                "syncing": f"Elegoo Saturn Sync Agent - Syncing\nFiles syncing: {len(self.syncing_files)}",
-                "synced": f"Elegoo Saturn Sync Agent - Synced\nPrinter IP: {self.config['printer_ip']}",
-                "error": f"Elegoo Saturn Sync Agent - Error\nPending errors: {len(self.error_files)}",
+                "offline": f"Saturn Sync Agent - Offline\nPrinter IP: {self.config['printer_ip']}",
+                "syncing": f"Saturn Sync Agent - Syncing\nFiles syncing: {len(self.syncing_files)}",
+                "synced": f"Saturn Sync Agent - Synced\nPrinter IP: {self.config['printer_ip']}",
+                "error": f"Saturn Sync Agent - Error\nPending errors: {len(self.error_files)}",
             }
-            tooltip = tooltips.get(self.status, "Elegoo Saturn Sync Agent")
+            tooltip = tooltips.get(self.status, "Saturn Sync Agent")
             self.tray_icon.title = tooltip
 
     def start(self):
@@ -481,7 +481,7 @@ class SyncAgent:
             item("Sync Now", lambda _: self.manual_sync()),
             item("Exit", lambda _: self.stop()),
         )
-        self.tray_icon = pystray.Icon("ElegooSaturnSync", self.icon_images["offline"], "Elegoo Saturn Sync Agent", menu)
+        self.tray_icon = pystray.Icon("SaturnSync", self.icon_images["offline"], "Saturn Sync Agent", menu)
         self.tray_icon.run_detached()
         self.tray_icon.visible = True
 
@@ -513,7 +513,7 @@ class SyncUI:
         self.agent = agent
         self.root = tk.Tk()
         set_window_icon(self.root, load_base_icon())
-        self.root.title("Elegoo Saturn Sync Agent")
+        self.root.title("Saturn Sync Agent")
         self.root.geometry("600x400")
         self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
 
