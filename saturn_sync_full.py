@@ -409,9 +409,10 @@ class SyncAgent:
             self.syncing_files.discard(filename)
             self.update_status("synced")
             if self.ui:
-                self.ui.root.after(0, lambda: self.ui.bar_upload_print.pack_forget())
+                self.ui.root.after(0, lambda:self.ui.progress_var.set(0))
+                self.ui.root.after(0, lambda:self.ui.bar_upload_print.pack())
                 self.ui.root.after(0, lambda: self.ui.set_controls_enabled(True))
-                self.ui.root.after(0, self.ui.refresh_file_list)
+                self.ui.root.after(0, lambda: self.ui.refresh_file_list)
 
     def handle_error(self, message):
         self.error_files.add(message)
@@ -766,13 +767,15 @@ class SyncUI:
                     self.update_status_text("Upload Complete!")
         except Exception:
             self.set_controls_enabled(True)
-            self.bar_upload_print.pack_forget()
+            self.progress_var.set(0)
+            self.bar_upload_print.pack()
         finally:
             if self.agent.current_printing_file != "":
                 self.root.after(200, self.poll_progress)
             else:
                 self.set_controls_enabled(True)
-                self.bar_upload_print.pack_forget()
+                self.progress_var.set(0)
+                self.bar_upload_print.pack()
 
 def main():
     agent = SyncAgent()
