@@ -593,6 +593,7 @@ class SyncUI:
         self.root.config(menu=menubar)
 
         self.refresh_file_list()
+        self.root.withdraw()
 
     def delete_selected_file(self, event=None):
         sel = self.file_listbox.curselection()
@@ -760,7 +761,11 @@ class SyncUI:
             if (self.agent.printing_paused):
                 progress = int(self.agent.printer.printingPercent()[1])
                 if progress < 100:
-                    self.update_status_text(f"Printing {self.agent.current_printing_file}: {progress}%")
+                    filenameshort = self.agent.current_printing_file
+                    if len(filenameshort) > 20:
+                        filenameshort = filenameshort[17]
+                        filenameshort += "..."
+                    self.update_status_text(f"Printing {filenameshort}: {progress}%")
                     self.progress_var.set(progress)
                 else:
                     self.update_status_text("Printing Complete!")
@@ -772,7 +777,11 @@ class SyncUI:
                 if remaining > 0:
                     progress = 1 - remaining / filelength
                     self.progress_var.set(int(progress * 100))
-                    self.update_status_text(f"Uploading {self.agent.current_printing_file[:10]}, {filelength - remaining}/{filelength}")
+                    filenameshort = self.agent.current_printing_file
+                    if len(filenameshort) > 20:
+                        filenameshort = filenameshort[17]
+                        filenameshort += "..."
+                    self.update_status_text(f"Uploading {filenameshort}, {filelength - remaining}/{filelength}")
                 else:
                     self.update_status_text("Upload Complete!")
         except Exception:
