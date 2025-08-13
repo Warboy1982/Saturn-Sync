@@ -174,12 +174,11 @@ class Printer():
             str: Machine State
         """
         string = self.__sendRecieveSingleNice__("M27")
-        if string == "Error:It's not printing now!":
-            return "Not Printing"
-        elif string.split()[0] == "SD":
+        while string != "Error:It's not printing now!" and string.split()[0] != "SD":
+            string == self.sock.recv(self.buffSize)
+        if string.split()[0] == "SD":
             return f"Printing {string}"
-        else:
-            return self.printingStatus() # purge buffer until we get a meaningful response
+        return "Not Printing"
 
     def printingPercent(self) -> list:
         """Returns the percentage of the print in bytes complete (not massively accurate)
