@@ -226,25 +226,6 @@ class SyncAgent:
             return
         self.update_status("synced")  # Assume synced before syncing
 
-        # Check printing status
-        try:
-            printing_state = self.printer.printingStatus()
-            if printing_state.startswith("Printing"):
-                self.printing_paused = True
-                self.update_status("printing")
-                return
-            else:
-                if self.printing_paused:
-                    # Printing just ended
-                    self.printing_paused = False
-        except Exception:
-            # Assume not printing if error
-            self.printing_paused = False
-
-        # If printing paused, skip sync for now
-        if self.printing_paused:
-            return
-
         self.sync_all()
 
     def ping_printer(self):

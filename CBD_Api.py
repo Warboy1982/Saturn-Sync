@@ -48,10 +48,11 @@ class Printer():
 
     def __getUniversal__(self,split) -> str:
         output = (str)(self.__sendRecieveSingle__("M99999")).split(" ")[split].split(":")[1] # splits b'ok MAC:00:e0:4c:27:00:2e IP:192.168.1.174 VER:V1.4.1 ID:2e,00,27,00,17,50,53,54 NAME:CBD\r\n' into just a single field
-
         if not output:
             return "No Response"
         else:
+            if not output.startswith('V'):
+                output = (str)(self.sock.recv(self.buffSize)).split(" ")[split].split(":")[1]
             return output
 
     def getVer(self) -> str:
