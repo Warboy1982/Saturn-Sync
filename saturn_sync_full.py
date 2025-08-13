@@ -729,8 +729,6 @@ class SyncUI:
         self.btn_refresh.config(state=state)
         self.btn_print.config(state=state)
         self.btn_sync_now.config(state=state)
-        self.speed_slider.config(state=state)
-        self.delay_entry.config(state=state)
 
     def start_upload_progress(self):
         self.set_controls_enabled(False)
