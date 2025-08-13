@@ -176,9 +176,9 @@ class Printer():
         except:
             return "Not Printing"
 
+        confirmation = self.sock.recv(self.buffSize) #absorb the ok message
         if string.split()[0] == "SD":
             return f"Printing {string}"
-        confirmation = self.sock.recv(self.buffSize) #absorb the ok message after our error message
         return "Not Printing"
 
     def printingPercent(self) -> list:
