@@ -173,9 +173,10 @@ class Printer():
         Returns:
             str: Machine State
         """
-        string = self.__sendRecieveSingleNice__("M27")
-        while string != "Error:It's not printing now!" and string.split()[0] != "SD":
-            string == self.sock.recv(self.buffSize)
+        try:
+            string = self.__sendRecieveSingleNice__("M27")
+        except:
+            return "Not Printing"
         if string.split()[0] == "SD":
             return f"Printing {string}"
         return "Not Printing"
