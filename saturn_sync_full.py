@@ -221,14 +221,14 @@ class SyncAgent:
         if self.current_uploading_file != "":
             self.update_status("syncing")
             return
-        if self.current_printing_file != "":
+        if self.printing_paused:
             self.update_status("printing")
             return
         self.update_status("synced")  # Assume synced before syncing
         printJob = self.printer.printingStatus()
         if (printJob != "Not Printing"):
             self.update_status("printing")
-            self.current_printing_file = printJob.split(1)
+            self.printing_paused = True
         self.sync_all()
 
     def ping_printer(self):
@@ -618,6 +618,8 @@ class SyncUI:
         self.root.lift()
         self.root.focus_force()
         self.refresh_file_list()
+        if self.agent.printing_paused:
+            self.start_upload_progress()
 
     def refresh_file_list(self):
         self.file_listbox.delete(0, tk.END)
@@ -671,6 +673,7 @@ class SyncUI:
             # Check if printer busy
             status = self.agent.printer.printingStatus()
             if status.startswith("Printing"):
+                self.agent.printing_paused = True
                 messagebox.showwarning("Printer Busy", "Printer is currently printing. Cannot start new print.")
                 return
             result = self.agent.printer.startPrinting(filename)
@@ -678,11 +681,9 @@ class SyncUI:
                 messagebox.showerror("Print Error", f"Failed to start print:\n{result}")
             else:
                 messagebox.showinfo("Print Started", f"Print job for '{filename}' started successfully.")
-                self.set_controls_enabled(False)
                 self.update_status_text(f"Printing {filename}: 0%")
                 self.agent.current_printing_file = filename
-                self.progress_var.set(0)
-                self.bar_upload_print.pack()
+                self.agent.printing_paused = True
                 self.start_upload_progress()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to send print command:\n{e}")
@@ -740,13 +741,15 @@ class SyncUI:
     def poll_progress(self):
         try:
             if (self.agent.printing_paused):
-                progress = int(self.agent.printer.printingPercent()[1])
-                if progress < 100:
+                progressString = self.agent.printer.printingStatus()
+                if progressString != "Not Printing":
                     filenameshort = self.agent.current_printing_file
                     if len(filenameshort) > 18:
                         filenameshort = filenameshort[:15]
                         filenameshort += "..."
-                    self.update_status_text(f"Printing {filenameshort}: {progress}%")
+                    progressString=progressString.split()[4] # we only want the x/y portion
+                    progress=(int)(progressString.split("/")[0]) / (int)(progressString.split("/")[1]) * 100
+                    self.update_status_text(f"Printing {filenameshort}: {(int)(progress)}%")
                     self.progress_var.set(progress)
                 else:
                     self.update_status_text("Printing Complete!")
@@ -770,7 +773,7 @@ class SyncUI:
             self.progress_var.set(0)
             self.bar_upload_print.pack()
         finally:
-            if self.agent.current_printing_file != "" and self.agent.current_uploading_file != "":
+            if self.agent.printing_paused or self.agent.current_uploading_file != "":
                 self.root.after(200, self.poll_progress)
             else:
                 self.set_controls_enabled(True)
