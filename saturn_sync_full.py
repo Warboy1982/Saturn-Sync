@@ -520,6 +520,7 @@ class SyncUI:
         # File list UI
         self.file_listbox = tk.Listbox(self.root, selectmode=tk.SINGLE)
         self.file_listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.file_listbox.bind("<Delete>", self.delete_selected_file)
 
         # Buttons
         btn_frame = tk.Frame(self.root)
@@ -592,6 +593,40 @@ class SyncUI:
         self.root.config(menu=menubar)
 
         self.refresh_file_list()
+
+    def delete_selected_file(self, event=None):
+        sel = self.file_listbox.curselection()
+        if not sel:
+            messagebox.showwarning("No selection", "Please select a file to delete.")
+            return
+
+        filename = self.file_listbox.get(sel[0])
+        # Remove check mark if present
+        if filename.startswith("✔ "):
+            filename = filename[2:]
+        else:
+            #otherwise, remove padding
+            filename = filename[5:]
+
+        local_path = self.agent.sync_folder / filename
+
+        if not local_path.exists():
+            messagebox.showerror("File Not Found", f"The file '{filename}' does not exist locally.")
+            return
+
+        # Confirm deletion
+        if not messagebox.askyesno(
+            "Confirm Delete",
+            f"Are you sure you want to delete the file:\n\n{filename}?"
+        ):
+            return
+
+        try:
+            local_path.unlink()  # Delete the file
+            messagebox.showinfo("Deleted", f"'{filename}' deleted successfully.")
+            self.refresh_file_list()  # Update your listbox contents
+        except Exception as e:
+            messagebox.showerror("Delete Error", f"Failed to delete '{filename}':\n{e}")
 
     def open_folder(self):
         os.startfile(Path(self.agent.sync_folder))
