@@ -745,7 +745,6 @@ class SyncUI:
         self.poll_progress()
 
     def volume_curved_percent(self, p: float) -> float:
-        x = max(0.0, min(100.0, p)) / 100.0
         # cubic skew: last 2% gets ~20% of the display
         # very hacky but it'll account for the inaccuracy
         # of trying to do a % based on byte comparison
@@ -756,7 +755,10 @@ class SyncUI:
         # end of the day, the last 2% of the file accounted for
         # about 20% of my final layers, in testing,
         # so i'm adjusting it based on that
-        return (3*x**2 - 2*x**3) * 100
+        # THIS FORMULA SUCKS FIND A BETTER ONE
+        # x = max(0.0, min(100.0, p)) / 100.0
+        # return (3*x**2 - 2*x**3) * 100
+        return p
 
     def poll_progress(self):
         try:
