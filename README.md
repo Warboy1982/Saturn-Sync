@@ -7,7 +7,11 @@ mars line of printers as well.
 
 ## Use
 
-Run the included .bat file or run "python Saturn_Sync_Final.py". This will start the program as a tray app. You may want to set this to run automatically on startup.
+On Windows: Run the .exe from the release section, or run the batch file if you prefer to run it from the source.
+
+On linux/macos: Run "python3 Saturn_Sync_Final.py".
+
+This will start the program as a tray app. You may want to set this to run automatically on startup.
 
 On first run, you will need to open the UI by right-clicking the tray icon, and then access the settings menu to setup your environment.
 
@@ -23,11 +27,17 @@ Windows
 Download the standalone version from github. Check the releases section.
 ```
 
+optionally:
+
 Make sure you have python installed:
 
 https://www.python.org/
 
 grab the dependencies:
+
+```python
+pip install -r requirements.txt
+```
 
 MacOS/ Linux
 ```python
