@@ -7,7 +7,7 @@ mars line of printers as well.
 
 ## Use
 
-On Windows: Run the .exe from the release section, or run the batch file if you prefer to run it from the source.
+On Windows: Run the .exe, or the batch file if you prefer to run it from the source.
 
 On linux/macos: Run "python3 Saturn_Sync_Final.py".
 
@@ -24,7 +24,7 @@ please note: the print progress is extremely inaccurate, as the printer provides
 ## Installing
 Windows
 ```
-Download the standalone version from github. Check the releases section.
+Download the .exe file.
 ```
 
 optionally:
