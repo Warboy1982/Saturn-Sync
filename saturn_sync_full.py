@@ -29,7 +29,8 @@ DEFAULT_CONFIG = {
     "sync_folder": str(Path.home() / "SaturnSync"),
     "ping_interval_minutes": 1,
     "send_delay": 0.005,
-    "log_unknown_messages": False  # Hidden, must edit config file manually
+    "delete_remote": False,
+    "log_unknown_messages": False  # Hidden, must edit config file manually    
 }
 
 # Icon constants (will be created on the fly)
@@ -161,6 +162,7 @@ class SyncAgent:
                     self.config = json.load(f)
             except Exception:
                 self.config = DEFAULT_CONFIG.copy()
+                self.save_config()
         else:
             self.config = DEFAULT_CONFIG.copy()
             self.save_config()
@@ -256,16 +258,16 @@ class SyncAgent:
                 printer_files = dict(self.printer.getCardFiles())
             except Exception:
                 printer_files = {}
-
-            # Step 3: Sync deletions - files on printer but not locally
-            to_delete = set(printer_files.keys()) - set(local_files.keys())
-            for filename in to_delete:
-                try:
-                    self.printer.removeCardFile(filename)
-                    with self.metadata_lock:
-                        self.metadata.pop(filename, None)
-                except Exception:
-                    self.handle_error(f"Failed to delete '{filename}' on printer")
+            if (self.config["delete_remote"]):
+                # Step 3: Sync deletions - files on printer but not locally
+                to_delete = set(printer_files.keys()) - set(local_files.keys())
+                for filename in to_delete:
+                    try:
+                        self.printer.removeCardFile(filename)
+                        with self.metadata_lock:
+                            self.metadata.pop(filename, None)
+                    except Exception:
+                        self.handle_error(f"Failed to delete '{filename}' on printer")
 
             # Step 4: Sync additions/modifications
             for filename, meta in local_files.items():
@@ -564,11 +566,36 @@ class SyncUI:
         config_menu.add_command(label="Change Printer IP", command=self.change_printer_ip)
         config_menu.add_command(label="Set Ping Interval", command=self.set_ping_interval)
         config_menu.add_command(label="Set Transfer Delay", command=self.set_send_delay)
+        config_menu.add_command(label="Enable Remote Deletion", command=self.enable_remote_deletion)
         menubar.add_cascade(label="Config", menu=config_menu)
         self.root.config(menu=menubar)
 
         self.refresh_file_list()
         self.root.withdraw()
+
+    def enable_remote_deletion(self):
+        popup = tk.Toplevel()
+        popup.title("Remote File Deletion")
+        popup.geometry("300x150")
+        popup.resizable(False, False)
+        popup.grab_set()  # Make popup modal
+
+        ttk.Label(popup, text="Allow remote deletion of files?").pack(pady=10)
+ 
+        def update_remote_delete():
+            chk.config(text="Enabled" if delete_enabled.get() else "Disabled")
+
+        def save_choice():
+            self.agent.config["delete_remote"] = delete_enabled.get()
+            self.agent.save_config()
+            popup.destroy()
+       
+        delete_enabled = tk.BooleanVar(value=self.agent.config["delete_remote"])
+        chk = ttk.Checkbutton(popup, text="Enabled" if delete_enabled.get() else "Disabled", variable=delete_enabled, onvalue=True, offvalue=False,command=update_remote_delete)
+        chk.pack()
+        ttk.Button(popup, text="Save", command=save_choice).pack(pady=15)
+
+
 
     def delete_selected_file(self, event=None):
         sel = self.file_listbox.curselection()

@@ -55,3 +55,8 @@ Set Transfer Delay
 ```
 Sets an (n) ms delay between sending file chunks to avoid transfer errors.
 ```
+
+Enable Remote Deletion
+```
+Toggles whether or not you want to delete files from the printer that aren't found locally.
+```
