@@ -18,6 +18,10 @@ The UI allows for issuing print commands, file deletion and provides real-time m
 please note: the print progress is extremely inaccurate, as the printer provides progress reports in terms of bytes read. This is a terrible metric, as layer byte lengths are extremely inconsistent. In testing, the last 2 percent of the bytes in my print job represented 20 percent of the layers.
 
 ## Installing
+Windows
+```
+Download the standalone version from github. Check the releases section.
+```
 
 Make sure you have python installed:
 
@@ -25,10 +29,6 @@ https://www.python.org/
 
 grab the dependencies:
 
-Windows
-```python
-pip install -r requirements.txt
-```
 MacOS/ Linux
 ```python
 pip3 install -r requirements.txt
