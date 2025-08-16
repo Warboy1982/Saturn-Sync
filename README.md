@@ -15,7 +15,7 @@ This will start the program as a tray app. You may want to set this to run autom
 
 On first run, you will need to open the UI by right-clicking the tray icon, and then access the settings menu to setup your environment.
 
-Once everything is configured, file syncing should begin automatically. From this point, user interaction is no longer necessary, simply save a .ctb file in the folder, and it'll appear on your printer.
+Once everything is configured, file syncing should begin automatically. From this point, user interaction is no longer necessary, simply save a .ctb or .goo file in the folder, and it'll appear on your printer.
 
 The UI allows for issuing print commands, file deletion and provides real-time monitoring of uploads and print progress.
 
@@ -24,7 +24,7 @@ please note: the print progress is extremely inaccurate, as the printer provides
 ## Installing
 Windows
 ```
-Download the .exe file.
+Download the .exe file and res folder.
 ```
 
 optionally:
