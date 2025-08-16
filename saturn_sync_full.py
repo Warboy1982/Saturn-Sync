@@ -271,8 +271,8 @@ class SyncAgent:
 
             # Step 4: Sync additions/modifications
             for filename, meta in local_files.items():
-                if not filename.lower().endswith('.ctb'):
-                    continue  # Skip non-CTB files
+                if not filename.lower().endswith((".ctb", ".goo")):
+                    continue  # Skip non-CTB/GOO files
                 if filename not in printer_files:
                     # New file - upload
                     self.upload_file(filename)
@@ -294,33 +294,34 @@ class SyncAgent:
     def scan_local_files(self):
         # Return dict: filename -> metadata dict {mtime, size, checksum (optional)}
         files_meta = {}
-        for entry in self.sync_folder.glob("*.ctb"):
-            try:
-                stat = entry.stat()
-                mtime = stat.st_mtime
-                size = stat.st_size
-                key = entry.name
+        for entry in self.sync_folder.iterdir():    
+            if entry.suffix.lower() in (".ctb", ".goo"):
+                try:
+                    stat = entry.stat()
+                    mtime = stat.st_mtime
+                    size = stat.st_size
+                    key = entry.name
 
-                meta = self.metadata.get(key, {})
-                checksum = meta.get("checksum")
+                    meta = self.metadata.get(key, {})
+                    checksum = meta.get("checksum")
 
-                # Check if hash needed
-                need_hash = False
-                if (not checksum) or meta.get("mtime") != mtime or meta.get("size") != size:
-                    need_hash = True
+                    # Check if hash needed
+                    need_hash = False
+                    if (not checksum) or meta.get("mtime") != mtime or meta.get("size") != size:
+                        need_hash = True
 
-                if need_hash:
-                    checksum = self.compute_checksum(entry)
-                    with self.metadata_lock:
-                        self.metadata[key] = {
-                            "mtime": mtime,
-                            "size": size,
-                            "checksum": checksum,
-                        }
-                files_meta[key] = {"mtime": mtime, "size": size, "checksum": checksum}
-            except Exception:
-                # Ignore unreadable files
-                pass
+                    if need_hash:
+                        checksum = self.compute_checksum(entry)
+                        with self.metadata_lock:
+                            self.metadata[key] = {
+                                "mtime": mtime,
+                                "size": size,
+                                "checksum": checksum,
+                            }
+                    files_meta[key] = {"mtime": mtime, "size": size, "checksum": checksum}
+                except Exception:
+                    # Ignore unreadable files
+                    pass
         return files_meta
 
     def compute_checksum(self, filepath):
@@ -508,7 +509,7 @@ class FolderChangeHandler(FileSystemEventHandler):
     def on_any_event(self, event):
         if event.is_directory:
             return
-        if not event.src_path.lower().endswith(".ctb"):
+        if not event.src_path.lower().endswith((".ctb", ".goo")):
             return
         # Trigger manual sync due to folder change
         if self.agent.ui:
@@ -661,7 +662,7 @@ class SyncUI:
         compute_checksum = self.agent.compute_checksum
 
         # Get local .ctb files
-        local_files = sorted([f.name for f in sync_folder.glob("*.ctb")])
+        local_files = sorted([f.name for f in sync_folder.iterdir() if f.suffix.lower() in (".ctb", ".goo")])
 
         for filename in local_files:
             # Determine if file is synced

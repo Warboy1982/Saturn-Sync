@@ -82,9 +82,11 @@ class Printer():
         string = string.rstrip()
         return string
 
-    def __stripSpaceFromBack__(self, string) -> str:
-        bIndex = max([i for i, ltr in enumerate(string) if ltr == "b"]) # this returns the last 'B' from the given string. Because the last 'B' is that of the .ctb extension we know that the next char is a space that delimits filename and filesize
-        return((string[:bIndex+1],string[bIndex+2:]))
+    def __stripSpaceFromBack__(self, string):
+        exts = [".ctb", ".goo"]
+        ext_index = max(string.rfind(ext) for ext in exts)
+        ext = next(ext for ext in exts if string.rfind(ext) == ext_index)
+        return string[:ext_index + len(ext)], string[ext_index + len(ext):].strip()
 
     def getCardFiles(self) -> list:
         """Returns the list of CTB files on the storage
@@ -97,7 +99,7 @@ class Printer():
         request = self.__stripFormatting__((self.sock.recv(self.buffSize)))
 
         while request != "End file list":
-            if ".ctb" in request:
+            if ".ctb" in request or ".goo" in request:
                 if request != "Begin file list" and self.__stripSpaceFromBack__(request)[1] != 0: # this prevents deleted files from appearing
                     #output.append(request)
                     output.append(self.__stripSpaceFromBack__(request))
