@@ -24,7 +24,7 @@ please note: the print progress is extremely inaccurate, as the printer provides
 ## Installing
 Windows
 ```
-Download the .exe file and res folder.
+Download the .exe file.
 ```
 
 optionally:
