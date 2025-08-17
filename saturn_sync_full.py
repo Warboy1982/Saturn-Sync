@@ -441,6 +441,7 @@ class SyncAgent:
         if self.tray_icon:
             icon_image = self.icon_images.get(new_status)
             self.tray_icon.icon = icon_image
+            self.tray_icon._update_icon()
 
     def update_tray_tooltip(self):
         if self.tray_icon:
