@@ -633,7 +633,16 @@ class SyncUI:
             messagebox.showerror("Delete Error", f"Failed to delete '{filename}':\n{e}")
 
     def open_folder(self):
-        os.startfile(Path(self.agent.sync_folder))
+        path = str(self.agent.sync_folder)
+        try:
+            if os.name == "nt":
+                os.startfile(path)
+            elif sys.platform == "darwin":
+                os.system(f'open "{path}"')
+            else:
+                os.system(f'xdg-open "{path}"')
+        except Exception:
+            messagebox.showinfo("Folder", path)
 
     def update_status_text(self, new_status):
         self.text_status['state'] = 'normal'
