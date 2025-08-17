@@ -794,6 +794,24 @@ class SyncUI:
                 progressString = self.agent.printer.printingStatus()
                 if progressString != "Not Printing":
                     filenameshort = self.agent.current_printing_file
+                    if filenameshort == "":
+                        filesize = (float)(progressString.split("/")[1])
+                        sync_folder = self.agent.sync_folder
+                        metadata = self.agent.metadata
+
+                        # Get local .ctb files
+                        local_files = sorted([f.name for f in sync_folder.iterdir() if f.suffix.lower() in (".ctb", ".goo")])
+
+                        for filename in local_files:
+                            meta = metadata.get(filename)
+                            if meta:
+                                try:
+                                    if filesize == meta.get("size"):
+                                        filenameshort = filename
+                                        self.agent.current_printing_file = filename
+                                        break
+                                except Exception: #invalid metadata, ignore
+                                    continue
                     if len(filenameshort) > 18:
                         filenameshort = filenameshort[:15]
                         filenameshort += "..."
