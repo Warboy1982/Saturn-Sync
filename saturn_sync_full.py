@@ -882,21 +882,12 @@ class SyncUI:
         self.bar_upload_print.pack()
         self.poll_progress()
 
-    def volume_curved_percent(self, p: float) -> float:
-        # cubic skew: last 2% gets ~20% of the display
-        # very hacky but it'll account for the inaccuracy
-        # of trying to do a % based on byte comparison
-        # more white pixels/complexity in a layer = more bytes
-        # average model will have significantly less geometry
-        # in the top fifth compared to the rest of the model
-        # due to assumed lack of supports needed
-        # end of the day, the last 2% of the file accounted for
-        # about 20% of my final layers, in testing,
-        # so i'm adjusting it based on that
-        # THIS FORMULA SUCKS FIND A BETTER ONE
-        # x = max(0.0, min(100.0, p)) / 100.0
-        # return (3*x**2 - 2*x**3) * 100
-        return p
+    def fuzzy_percent(self, p: float) -> float:
+        # do some horrific math to get a (marginally) more accurate print progress meter
+        if p < 95:
+            return p * 80 / 95
+        else:
+            return 80 + (p - 95) * 4
 
     def poll_progress(self):
         try:
@@ -919,8 +910,9 @@ class SyncUI:
                         filenameshort = filenameshort[:15]
                         filenameshort += "..."
                     progressString=progressString.split()[4] # we only want the x/y portion
-                    progress=self.volume_curved_percent((float)(progressString.split("/")[0]) / (float)(progressString.split("/")[1]) * 100)
+                    progress=self.fuzzy_percent((float)(progressString.split("/")[0]) / (float)(progressString.split("/")[1]) * 100)
                     self.update_status_text(f"Printing {filenameshort}: {round(progress, 2)}%")
+                    self.set_controls_enabled(False)
                     self.progress_var.set(progress)
                 else:
                     self.update_status_text("Printing Complete!")
@@ -931,6 +923,7 @@ class SyncUI:
                 remaining = self.agent.printer.remaining
                 if remaining > 0:
                     progress = 1 - remaining / filelength
+                    self.set_controls_enabled(False)
                     self.progress_var.set(int(progress * 100))
                     filenameshort = self.agent.current_uploading_file
                     if len(filenameshort) > 18:
