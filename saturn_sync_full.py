@@ -517,50 +517,21 @@ class FolderChangeHandler(FileSystemEventHandler):
         self.agent.manual_sync()
 
     
-class SyncUI:        
+class SyncUI:
+    INDICATORS = {
+        "synced": "✔",
+        "uploading": "↑",
+        "missing": "!",
+    }
+
     def __init__(self, agent):
         self.agent = agent
         self.root = tk.Tk()
         set_window_icon(self.root, load_base_icon())
         self.root.title("Saturn Sync Agent")
-        self.root.geometry("600x400")
+        self.root.geometry("600x420")
         self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
 
-        # File list UI
-        self.file_listbox = tk.Listbox(self.root, selectmode=tk.SINGLE)
-        self.file_listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        self.file_listbox.bind("<Delete>", self.delete_selected_file)
-
-        # Buttons
-        btn_frame = tk.Frame(self.root)
-        btn_frame.pack(fill=tk.X, padx=10, pady=5)
-
-        self.btn_refresh = tk.Button(btn_frame, text="Refresh File List", command=self.refresh_file_list)
-
-        self.btn_print = tk.Button(btn_frame, text="Print Selected File", command=self.print_selected_file)
-
-        self.btn_open_folder = tk.Button(btn_frame, text="Open Sync Folder", command=self.open_folder)
-
-        self.btn_sync_now = tk.Button(btn_frame, text="Manual Sync Now", command=self.agent.manual_sync)
-        
-        self.progress_var = tk.DoubleVar()
-        bar_frame = tk.Frame(self.root)
-
-        self.text_status = tk.Text(bar_frame, height=1, width=42, wrap="none", background="systemButtonFace", relief="flat")
-        self.text_status.pack(side=tk.LEFT, padx=10)
-        self.text_status.insert(1.0, self.agent.status)
-        self.text_status['state'] = 'disabled'
-
-        self.bar_upload_print = ttk.Progressbar(bar_frame, orient="horizontal", mode="determinate", length=400, variable=self.progress_var, maximum=100)
-        self.bar_upload_print.pack(side=tk.RIGHT, padx=10)
-
-        self.btn_print.pack(side=tk.LEFT, padx=5)
-        self.btn_sync_now.pack(side=tk.RIGHT, padx=5)
-        self.btn_refresh.pack(side=tk.RIGHT, padx=5)
-        self.btn_open_folder.pack(side=tk.RIGHT, padx=5)
-        bar_frame.pack(side=tk.RIGHT, padx=5, pady=5)
-
-        # Config menu
         menubar = tk.Menu(self.root)
         config_menu = tk.Menu(menubar, tearoff=0)
         config_menu.add_command(label="Change Sync Folder", command=self.change_sync_folder)
@@ -571,8 +542,117 @@ class SyncUI:
         menubar.add_cascade(label="Config", menu=config_menu)
         self.root.config(menu=menubar)
 
+        lists_frame = tk.Frame(self.root)
+        lists_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(6, 4))
+
+        hdr = tk.Frame(lists_frame)
+        hdr.pack(fill=tk.X, side=tk.TOP)
+        tk.Label(hdr, text="Local Files", anchor="w").pack(side=tk.LEFT, padx=(0, 10))
+        tk.Label(hdr, text="Remote Files", anchor="w").pack(side=tk.RIGHT, padx=(0, 10))
+
+        panes = tk.Frame(lists_frame)
+        panes.pack(fill=tk.BOTH, expand=True)
+
+        left_frame = tk.Frame(panes)
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+
+        # Use monospaced font so indicator column width is uniform (alignment requirement)
+        try:
+            mono = tk.font.nametofont("TkFixedFont")
+        except Exception:
+            import tkinter.font as tkfont
+            mono = tkfont.Font(family="Courier New", size=10)
+
+        self.local_list = tk.Listbox(left_frame, selectmode=tk.SINGLE, activestyle="none", font=mono)
+        self.local_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.local_scroll = tk.Scrollbar(left_frame, orient="vertical", command=self.local_list.yview)
+        self.local_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.local_list.config(yscrollcommand=self.local_scroll.set)
+
+        right_frame = tk.Frame(panes)
+        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10)
+
+        self.remote_list = tk.Listbox(right_frame, selectmode=tk.SINGLE, activestyle="none", font=mono)
+        self.remote_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.remote_scroll = tk.Scrollbar(right_frame, orient="vertical", command=self.remote_list.yview)
+        self.remote_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.remote_list.config(yscrollcommand=self.remote_scroll.set)
+
+        self.local_list.bind("<Delete>", self.delete_selected_file)
+        self.remote_list.bind("<Delete>", self.delete_selected_file)
+        self.local_list.bind("<<ListboxSelect>>", lambda e: self.remote_list.selection_clear(0, tk.END))
+        self.remote_list.bind("<<ListboxSelect>>", lambda e: self.local_list.selection_clear(0, tk.END))
+
+        btn_frame = tk.Frame(self.root)
+        btn_frame.pack(fill=tk.X, padx=10, pady=(0, 6))
+
+        self.btn_print = tk.Button(btn_frame, text="Print Selected File", command=self.print_selected_file)
+        self.btn_open_folder = tk.Button(btn_frame, text="Open Sync Folder", command=self.open_folder)
+        self.btn_refresh = tk.Button(btn_frame, text="Refresh File List", command=self.refresh_file_list)
+        self.btn_sync_now = tk.Button(btn_frame, text="Manual Sync Now", command=self.agent.manual_sync)
+
+        self.btn_print.pack(side=tk.LEFT, padx=5)
+        self.btn_refresh.pack(side=tk.RIGHT, padx=5)
+        self.btn_sync_now.pack(side=tk.RIGHT, padx=5)
+        self.btn_open_folder.pack(side=tk.RIGHT, padx=5)
+
+        bar_frame = tk.Frame(self.root)
+        bar_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+        self.progress_var = tk.DoubleVar()
+        self.text_status = tk.Text(bar_frame, height=1, width=42, wrap="none",
+                                   background="systemButtonFace", relief="flat")
+        self.text_status.pack(side=tk.LEFT, padx=10)
+        self.text_status.insert(1.0, self.agent.status)
+        self.text_status["state"] = "disabled"
+
+        self.bar_upload_print = ttk.Progressbar(bar_frame, orient="horizontal",
+                                                mode="determinate", length=400,
+                                                variable=self.progress_var, maximum=100)
+        self.bar_upload_print.pack(side=tk.RIGHT, padx=10)
+
+        # internal: caches for display
+        self._local_items = []   # list[str] filenames only, in listbox order
+        self._remote_items = []  # list[str]
+        self._local_status = {}  # filename -> "synced"|"uploading"|"missing"
+
         self.refresh_file_list()
         self.root.withdraw()
+
+    def _local_files(self):
+        sync_folder = self.agent.sync_folder
+        return sorted([f.name for f in sync_folder.iterdir() if f.is_file() and f.suffix.lower() in (".ctb", ".goo")])
+    
+    def _remote_files_and_sizes(self):
+        files = set()
+        sizes = {}
+        try:
+            pairs = self.agent.printer.getCardFiles()
+            for name, sz in pairs:
+                files.add(name)
+                try:
+                    sizes[name] = int(sz)
+                except Exception:
+                    sizes[name] = None
+        except Exception:
+            pass
+        return files, sizes
+
+    def _is_synced(self, filename, remote_files):
+        if filename not in remote_files:
+            return False
+        if filename in getattr(self.agent, "syncing_files", set()):
+            return False
+        try:
+            meta = self.agent.metadata.get(filename)
+            p = (self.agent.sync_folder / filename)
+            if not meta or not p.exists():
+                return False
+            stat = p.stat()
+            if stat.st_size != meta.get("size"):
+                return False
+            return self.agent.compute_checksum(p) == meta.get("checksum")
+        except Exception:
+            return False
 
     def enable_remote_deletion(self):
         popup = tk.Toplevel()
@@ -596,41 +676,55 @@ class SyncUI:
         chk.pack()
         ttk.Button(popup, text="Save", command=save_choice).pack(pady=15)
 
-
-
     def delete_selected_file(self, event=None):
-        sel = self.file_listbox.curselection()
-        if not sel:
-            messagebox.showwarning("No selection", "Please select a file to delete.")
+        fname_local = self._selection_local()
+        fname_remote = self._selection_remote()
+
+        if not fname_local and not fname_remote:
+            messagebox.showwarning("No selection", "Select a file in either list to delete.")
             return
 
-        filename = self.file_listbox.get(sel[0])
-        # Remove check mark if present
-        if filename.startswith("✔ "):
-            filename = filename[2:]
-        else:
-            #otherwise, remove padding
-            filename = filename[5:]
+        # Deleting from LOCAL pane
+        if fname_local:
+            if not messagebox.askyesno("Delete Local", f"Delete '{fname_local}' from local folder?"):
+                return
+            try:
+                (self.agent.sync_folder / fname_local).unlink(missing_ok=True)
+            except Exception as e:
+                messagebox.showerror("Delete Local Failed", str(e))
+                return
 
-        local_path = self.agent.sync_folder / filename
+            # If it was synced, ask about remote deletion too
+            if self._local_status.get(fname_local) == "synced":
+                if messagebox.askyesno("Also delete on printer?",
+                                       f"'{fname_local}' exists on the printer. Delete it there too?"):
+                    try:
+                        self.agent.printer.removeCardFile(fname_local)
+                    except Exception as e:
+                        messagebox.showerror("Remote Delete Failed", str(e))
 
-        if not local_path.exists():
-            messagebox.showerror("File Not Found", f"The file '{filename}' does not exist locally.")
-            return
+        # Deleting from REMOTE pane
+        if fname_remote:
+            if not messagebox.askyesno("Delete on Printer", f"Delete '{fname_remote}' from the printer?"):
+                return
+            try:
+                self.agent.printer.removeCardFile(fname_remote)
+            except Exception as e:
+                messagebox.showerror("Remote Delete Failed", str(e))
+                return
 
-        # Confirm deletion
-        if not messagebox.askyesno(
-            "Confirm Delete",
-            f"Are you sure you want to delete the file:\n\n{filename}?"
-        ):
-            return
+            # Offer re-upload if we still have it locally
+            local_path = (self.agent.sync_folder / fname_remote)
+            if local_path.exists():
+                if messagebox.askyesno("Re-upload?",
+                                       f"'{fname_remote}' still exists locally. Re-upload to the printer?"):
+                    try:
+                        self.agent.current_uploading_file = fname_remote
+                        self.agent.upload_file(fname_remote)
+                    except Exception as e:
+                        messagebox.showerror("Re-upload Failed", str(e))
 
-        try:
-            local_path.unlink()  # Delete the file
-            messagebox.showinfo("Deleted", f"'{filename}' deleted successfully.")
-            self.refresh_file_list()  # Update your listbox contents
-        except Exception as e:
-            messagebox.showerror("Delete Error", f"Failed to delete '{filename}':\n{e}")
+        self.refresh_file_list()
 
     def open_folder(self):
         path = str(self.agent.sync_folder)
@@ -665,69 +759,76 @@ class SyncUI:
             self.start_upload_progress()
 
     def refresh_file_list(self):
-        self.file_listbox.delete(0, tk.END)
-        sync_folder = self.agent.sync_folder
-        metadata = self.agent.metadata
-        compute_checksum = self.agent.compute_checksum
+        local = self._local_files()
+        remote_set, _remote_sizes = self._remote_files_and_sizes()
 
-        # Get local .ctb files
-        local_files = sorted([f.name for f in sync_folder.iterdir() if f.suffix.lower() in (".ctb", ".goo")])
-
-        for filename in local_files:
-            # Determine if file is synced
-            synced = False
-            meta = metadata.get(filename)
-            file_path = sync_folder / filename
-            if meta:
-                try:
-                    stat = file_path.stat()
-                    checksum = compute_checksum(file_path)
-                    if (
-                        stat.st_size == meta.get("size") and
-                        abs(stat.st_mtime - meta.get("mtime", 0)) < 1 and
-                        checksum == meta.get("checksum") and
-                        filename not in self.agent.syncing_files
-                    ):
-                        synced = True
-                except Exception:
-                    synced = False
-
-            display_text = filename
-            if synced:
-                display_text = "✔ " + display_text
+        # Build local statuses
+        status_map = {}
+        for fname in local:
+            if fname in getattr(self.agent, "syncing_files", set()):
+                status_map[fname] = "uploading"
+            elif self._is_synced(fname, remote_set):
+                status_map[fname] = "synced"
             else:
-                display_text = "     " + display_text
-            self.file_listbox.insert(tk.END, display_text)
+                status_map[fname] = "missing"
+
+        # Render local (indicators left, aligned)
+        self.local_list.delete(0, tk.END)
+        self._local_items = local
+        for fname in local:
+            ind = self.INDICATORS[status_map[fname]]
+            # fixed 3-char field for indicator + space keeps columns aligned in monospaced font
+            line = f"[{ind}] {fname}"
+            self.local_list.insert(tk.END, line)
+
+        # Render remote (no indicators)
+        self.remote_list.delete(0, tk.END)
+        self._remote_items = sorted(remote_set)
+        for fname in self._remote_items:
+            self.remote_list.insert(tk.END, fname)
+
+        self._local_status = status_map
+
+    def _selection_local(self):
+        sel = self.local_list.curselection()
+        if not sel:
+            return None
+        return self._local_items[sel[0]]
+
+    def _selection_remote(self):
+        sel = self.remote_list.curselection()
+        if not sel:
+            return None
+        return self._remote_items[sel[0]]
 
     def print_selected_file(self):
-        sel = self.file_listbox.curselection()
-        if not sel:
-            messagebox.showwarning("No selection", "Please select a file to print.")
+        # constraint (d): only if nothing is uploading or printing; only “synced” local item
+        if self.agent.printing_paused or getattr(self.agent, "syncing_files", set()):
+            messagebox.showwarning("Busy", "Uploads or a print are in progress.")
             return
-        filename = self.file_listbox.get(sel[0])
-        if not filename.startswith("✔ "):
-            messagebox.showwarning("File not synced", "Please wait for file sync.")
+
+        fname = self._selection_local()
+        if not fname:
+            messagebox.showwarning("No selection", "Select a synced local file to print.")
             return
-        filename = filename[2:]
-        # Confirm
-        if not messagebox.askyesno("Confirm Print", f"Send print command for '{filename}'?"):
+
+        if self._local_status.get(fname) != "synced":
+            messagebox.showwarning("Not available remotely", "That file is not available on the printer.")
             return
+
+        if not messagebox.askyesno("Confirm Print", f"Send print command for '{fname}'?"):
+            return
+
         try:
-            # Check if printer busy
             status = self.agent.printer.printingStatus()
-            if status.startswith("Printing"):
-                self.agent.printing_paused = True
-                messagebox.showwarning("Printer Busy", "Printer is currently printing. Cannot start new print.")
+            if status == "Printing":
+                messagebox.showwarning("Printer Busy", "Printer is currently printing.")
                 return
-            result = self.agent.printer.startPrinting(filename)
+            result = self.agent.printer.startPrinting(fname)
             if "Error" in result:
                 messagebox.showerror("Print Error", f"Failed to start print:\n{result}")
             else:
-                messagebox.showinfo("Print Started", f"Print job for '{filename}' started successfully.")
-                self.update_status_text(f"Printing {filename}: 0%")
-                self.agent.current_printing_file = filename
-                self.agent.printing_paused = True
-                self.start_upload_progress()
+                messagebox.showinfo("Print Started", f"'{fname}' started printing.")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to send print command:\n{e}")
 
@@ -804,23 +905,16 @@ class SyncUI:
                 if progressString != "Not Printing":
                     filenameshort = self.agent.current_printing_file
                     if filenameshort == "":
-                        filesize = (float)(progressString.split("/")[1])
-                        sync_folder = self.agent.sync_folder
-                        metadata = self.agent.metadata
-
-                        # Get local .ctb files
-                        local_files = sorted([f.name for f in sync_folder.iterdir() if f.suffix.lower() in (".ctb", ".goo")])
-
-                        for filename in local_files:
-                            meta = metadata.get(filename)
-                            if meta:
-                                try:
-                                    if filesize == meta.get("size"):
-                                        filenameshort = filename
-                                        self.agent.current_printing_file = filename
-                                        break
-                                except Exception: #invalid metadata, ignore
-                                    continue
+                        printSize = (float)(progressString.split("/")[1])
+                        try:
+                            remote_files = self.agent.printer.getCardFiles()
+                        except:
+                            remote_files = []
+                        for filename, fileSize in remote_files:
+                            if (float)(fileSize) == printSize:
+                                filenameshort = filename
+                                self.agent.current_printing_file = filename
+                                break
                     if len(filenameshort) > 18:
                         filenameshort = filenameshort[:15]
                         filenameshort += "..."
