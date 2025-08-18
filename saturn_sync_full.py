@@ -830,6 +830,9 @@ class SyncUI:
                 messagebox.showerror("Print Error", f"Failed to start print:\n{result}")
             else:
                 messagebox.showinfo("Print Started", f"'{fname}' started printing.")
+                self.agent.current_printing_file = fname
+                self.agent.printing_paused = True
+                self.start_upload_progress()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to send print command:\n{e}")
 
