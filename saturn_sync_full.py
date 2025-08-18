@@ -123,6 +123,7 @@ class SyncAgent:
         self.status = "offline"  # offline, syncing, synced, error
         self.error_files = set()
         self.syncing_files = set()
+        self.printer_files = {}
         self.current_uploading_file = ""
         self.current_printing_file = ""
 
@@ -255,12 +256,12 @@ class SyncAgent:
 
             # Step 2: Read printer files
             try:
-                printer_files = dict(self.printer.getCardFiles())
+                self.printer_files = dict(self.printer.getCardFiles())
             except Exception:
-                printer_files = {}
+                self.printer_files = {}
             if (self.config["delete_remote"]):
                 # Step 3: Sync deletions - files on printer but not locally
-                to_delete = set(printer_files.keys()) - set(local_files.keys())
+                to_delete = set(self.printer_files.keys()) - set(local_files.keys())
                 for filename in to_delete:
                     try:
                         self.printer.removeCardFile(filename)
@@ -273,7 +274,7 @@ class SyncAgent:
             for filename, meta in local_files.items():
                 if not filename.lower().endswith((".ctb", ".goo")):
                     continue  # Skip non-CTB/GOO files
-                if filename not in printer_files:
+                if filename not in self.printer_files:
                     # New file - upload
                     self.upload_file(filename)
                 else:
@@ -405,6 +406,7 @@ class SyncAgent:
                 self.save_metadata()
                 if filename in self.error_files:
                     self.error_files.remove(filename)
+                self.printer_files[filename] = (filename, stat.st_size)
         except Exception as e:
             self.handle_error(f"Upload exception: {e}")
             self.ui.update_status_text("Upload Failed!")
@@ -622,28 +624,14 @@ class SyncUI:
     def _local_files(self):
         sync_folder = self.agent.sync_folder
         return sorted([f.name for f in sync_folder.iterdir() if f.is_file() and f.suffix.lower() in (".ctb", ".goo")])
-    
-    def _remote_files_and_sizes(self):
-        files = set()
-        sizes = {}
-        try:
-            pairs = self.agent.printer.getCardFiles()
-            for name, sz in pairs:
-                files.add(name)
-                try:
-                    sizes[name] = int(sz)
-                except Exception:
-                    sizes[name] = None
-        except Exception:
-            pass
-        return files, sizes
 
-    def _is_synced(self, filename, remote_files):
-        if filename not in remote_files:
-            return False
+    def _is_synced(self, filename):
         if filename in getattr(self.agent, "syncing_files", set()):
             return False
         try:
+            if self.agent.printer_files:
+                if filename not in self.agent.printer_files:
+                    return False
             meta = self.agent.metadata.get(filename)
             p = (self.agent.sync_folder / filename)
             if not meta or not p.exists():
@@ -691,6 +679,7 @@ class SyncUI:
                 return
             try:
                 (self.agent.sync_folder / fname_local).unlink(missing_ok=True)
+                self.refresh_file_list()
             except Exception as e:
                 messagebox.showerror("Delete Local Failed", str(e))
                 return
@@ -701,6 +690,8 @@ class SyncUI:
                                        f"'{fname_local}' exists on the printer. Delete it there too?"):
                     try:
                         self.agent.printer.removeCardFile(fname_local)
+                        del self.agent.printer_files[fname_remote]
+                        self.refresh_file_list()
                     except Exception as e:
                         messagebox.showerror("Remote Delete Failed", str(e))
 
@@ -710,18 +701,27 @@ class SyncUI:
                 return
             try:
                 self.agent.printer.removeCardFile(fname_remote)
+                del self.agent.printer_files[fname_remote]
+                self.refresh_file_list()
+
             except Exception as e:
                 messagebox.showerror("Remote Delete Failed", str(e))
                 return
 
-            # Offer re-upload if we still have it locally
+            # Offer local delete
             local_path = (self.agent.sync_folder / fname_remote)
             if local_path.exists():
-                if messagebox.askyesno("Re-upload?",
-                                       f"'{fname_remote}' still exists locally. Re-upload to the printer?"):
+                if messagebox.askyesno("Delete local copy?", f"'{fname_remote}' still exists locally. Delete local copy?"):
                     try:
-                        self.agent.current_uploading_file = fname_remote
-                        self.agent.upload_file(fname_remote)
+                        (local_path).unlink(missing_ok=True)
+                        self.refresh_file_list()
+                    except Exception as e:
+                        messagebox.showerror("Delete Local Failed", str(e))
+                        return
+                else:
+                    try:
+                        self.agent.syncing_files.add(fname_remote)
+                        self.agent.manual_sync_requested = True
                     except Exception as e:
                         messagebox.showerror("Re-upload Failed", str(e))
 
@@ -761,24 +761,24 @@ class SyncUI:
 
     def refresh_file_list(self):
         local = self._local_files()
-        remote_set, _remote_sizes = self._remote_files_and_sizes()
-
+        remote_set = {}
+        if self.agent.printer_files:
+            remote_set = (dict)(self.agent.printer_files)
         # Build local statuses
         status_map = {}
         for fname in local:
             if fname in getattr(self.agent, "syncing_files", set()):
                 status_map[fname] = "uploading"
-            elif self._is_synced(fname, remote_set):
+            elif self._is_synced(fname):
                 status_map[fname] = "synced"
             else:
                 status_map[fname] = "missing"
-
+        
         # Render local (indicators left, aligned)
         self.local_list.delete(0, tk.END)
         self._local_items = local
         for fname in local:
             ind = self.INDICATORS[status_map[fname]]
-            # fixed 3-char field for indicator + space keeps columns aligned in monospaced font
             line = f"[{ind}] {fname}"
             self.local_list.insert(tk.END, line)
 
