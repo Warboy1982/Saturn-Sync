@@ -154,7 +154,9 @@ class Printer():
         Returns:
             str: If is action complete
         """
-        return (str)(self.__sendRecieveSingleNice__("M30 "+filename))
+        output = (str)(self.__sendRecieveSingleNice__("M30 "+filename))
+        confirmation = self.sock.recv(self.buffSize) #absorb the ok message
+        return(output)
 
     def startPrinting(self,filename) -> str:
         """Starts printing from storage
