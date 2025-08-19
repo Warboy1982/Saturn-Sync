@@ -84,8 +84,9 @@ class Printer():
 
     def __stripSpaceFromBack__(self, string):
         exts = [".ctb", ".goo"]
-        ext_index = max(string.rfind(ext) for ext in exts)
-        ext = next(ext for ext in exts if string.rfind(ext) == ext_index)
+        lower_string = string.lower()
+        ext_index = max(lower_string.rfind(ext) for ext in exts)
+        ext = next(ext for ext in exts if lower_string.rfind(ext) == ext_index)
         return string[:ext_index + len(ext)], string[ext_index + len(ext):].strip()
 
     def getCardFiles(self) -> list:
@@ -99,7 +100,7 @@ class Printer():
         request = self.__stripFormatting__((self.sock.recv(self.buffSize)))
 
         while request != "End file list":
-            if ".ctb" in request or ".goo" in request:
+            if ".ctb" in request.lower() or ".goo" in request.lower():
                 if request != "Begin file list" and self.__stripSpaceFromBack__(request)[1] != 0: # this prevents deleted files from appearing
                     #output.append(request)
                     output.append(self.__stripSpaceFromBack__(request))

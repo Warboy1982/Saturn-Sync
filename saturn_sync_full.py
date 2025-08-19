@@ -28,7 +28,7 @@ DEFAULT_CONFIG = {
     "printer_ip": "192.168.0.230",
     "sync_folder": str(Path.home() / "SaturnSync"),
     "ping_interval_minutes": 1,
-    "send_delay": 0.005,
+    "send_delay": 0.001,
     "delete_remote": False,
     "log_unknown_messages": False  # Hidden, must edit config file manually    
 }
