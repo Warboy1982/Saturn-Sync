@@ -468,12 +468,21 @@ class SyncAgent:
 
         # Start tray icon
         self.setup_tray_icon()
-        
-        # Start Tkinter UI on main thread
-        self.setup_ui()
 
         # Force initial detection
         self.ping_and_sync()
+
+        # Setup remote file list now
+        try:
+            if self.ping_printer():
+                self.printer_files = dict(self.printer.getCardFiles())
+        except Exception:
+            self.printer_files = {}
+
+        # Start Tkinter UI on main thread
+        self.setup_ui()
+
+
 
     def stop(self):
         self.stop_event.set()
