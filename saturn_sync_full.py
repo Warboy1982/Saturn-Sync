@@ -803,17 +803,17 @@ class SyncUI:
         return self._remote_items[sel[0]]
 
     def print_selected_file(self):
-        # constraint (d): only if nothing is uploading or printing; only “synced” local item
         if self.agent.printing_paused or getattr(self.agent, "syncing_files", set()):
-            messagebox.showwarning("Busy", "Uploads or a print are in progress.")
+            messagebox.showwarning("Busy", "Upload or print in progress.")
             return
 
         fname = self._selection_local()
         if not fname:
-            messagebox.showwarning("No selection", "Select a synced local file to print.")
-            return
-
-        if self._local_status.get(fname) != "synced":
+            fname = self._selection_remote()
+            if not fname:
+                messagebox.showwarning("No selection", "Select a file to print.")
+                return
+        elif self._local_status.get(fname) != "synced":
             messagebox.showwarning("Not available remotely", "That file is not available on the printer.")
             return
 
