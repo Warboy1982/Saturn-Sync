@@ -235,14 +235,17 @@ class SyncAgent:
         self.sync_all()
 
     def ping_printer(self):
-        #safeguard against a ping request messing up a send
-        if self.current_uploading_file == "" and not self.printing_paused:
-            try:
-                ver = self.printer.getVer()
-                # If getVer succeeds, printer is online
-                return True
-            except Exception:
-                return False
+        # safeguard against a ping request messing up a send
+        if self.current_uploading_file == "":
+            # the status bar isn't running so we're not sending requests for print updates, or we're not printing
+            if not (self.ui and self.ui.root.winfo_exists()) or not self.printing_paused:
+                try:
+                    ver = self.printer.getVer()
+                    # If getVer succeeds, printer is online
+                    return True
+                except Exception:
+                    return False
+        # fallback: if we're printing or uploading, we're online.
         return True
 
     def sync_all(self):
@@ -276,11 +279,13 @@ class SyncAgent:
                     continue  # Skip non-CTB/GOO files
                 if filename not in self.printer_files:
                     # New file - upload
-                    self.upload_file(filename)
+                    if filename not in self.syncing_files:
+                        self.syncing_files.add(filename)
                 else:
                     # File exists - check if modified
                     if self.is_file_modified(filename, meta):
-                        self.upload_file(filename)
+                        if filename not in self.syncing_files:
+                            self.syncing_files.add(filename)
 
             # Step 5: Purge metadata entries for deleted local files
             local_set = set(local_files.keys())
@@ -291,6 +296,8 @@ class SyncAgent:
 
             self.save_metadata()
             self.update_status("synced")
+        if len(self.syncing_files) and self.current_uploading_file == "":
+            self.upload_files()
 
     def scan_local_files(self):
         # Return dict: filename -> metadata dict {mtime, size, checksum (optional)}
@@ -343,82 +350,93 @@ class SyncAgent:
             return True
         return False
 
-    def upload_file(self, filename):
-        path = Path(self.sync_folder) / filename
-        try:
-            # Check printing status before upload
-            if self.printer.printingStatus().startswith("Printing"):
-                # Defer upload
-                self.printing_paused = True
-                return
+    def upload_files(self):
 
-            self.printing_paused = False
-
-            self.syncing_files.add(filename)
-            self.update_status("syncing")
-            
-            stable_duration = 1.0  # seconds
-            start = time.time()
-            last_size = -1
-            stable_start = None
-
-            while time.time() - start < 60:
+        def worker():
+            filesToSync = self.syncing_files.copy()
+            for filename in filesToSync:
+                path = Path(self.sync_folder) / filename
+                if not os.path.isfile(path): #in case file was deleted since being added to the list
+                    self.syncing_files.discard(filename)
+                    continue
                 try:
-                    size = os.path.getsize(path)
-                except (OSError, PermissionError):
-                    size = -1
+                    # Check printing status before upload
+                    if self.printer.printingStatus().startswith("Printing"):
+                        # Defer upload
+                        self.printing_paused = True
+                        return
 
-                if size == last_size and size != -1:
-                    if stable_start is None:
-                        stable_start = time.time()
-                    elif time.time() - stable_start >= stable_duration:
-                        break  # file size stable long enough, assume done writing
-                else:
-                    last_size = size
+                    self.printing_paused = False
+                    self.update_status("syncing")
+                    
+                    stable_duration = 1.0  # seconds
+                    start = time.time()
+                    last_size = -1
                     stable_start = None
 
-                time.sleep(0.1)
-            else:
-                self.update_status("error")
-                return
-            self.current_uploading_file = filename
-            if self.ui:
-                self.ui.set_controls_enabled(False)
-                self.ui.update_status_text(f"Uploading {filename}, 0/{os.stat(str(path)).st_size}")
-                self.ui.progress_var.set(0)
-                self.ui.bar_upload_print.pack()
-                self.ui.start_upload_progress()
-            result = self.printer.uploadFile(str(path), filename)
-            if "Error" in result or "Failed" in result or "No Response" in result:
-                self.ui.update_status_text("Upload Failed!")
-                self.handle_error(f"Upload error: {result}")
-            else:
-                self.ui.update_status_text("Upload Complete!")
-                # Update metadata on successful upload
-                stat = path.stat()
-                checksum = self.compute_checksum(path)
-                with self.metadata_lock:
-                    self.metadata[filename] = {
-                        "mtime": stat.st_mtime,
-                        "size": stat.st_size,
-                        "checksum": checksum,
-                    }
-                self.save_metadata()
-                if filename in self.error_files:
-                    self.error_files.remove(filename)
-                self.printer_files[filename] = (filename, stat.st_size)
-        except Exception as e:
-            self.handle_error(f"Upload exception: {e}")
-            self.ui.update_status_text("Upload Failed!")
-        finally:
-            self.current_uploading_file = ""
-            self.syncing_files.discard(filename)
-            self.update_status("synced")
-            if self.ui:
-                self.ui.root.after(0, lambda:self.ui.progress_var.set(0))
-                self.ui.root.after(0, lambda:self.ui.bar_upload_print.pack())
-                self.ui.root.after(0, lambda: self.ui.set_controls_enabled(True))
-                self.ui.root.after(0, lambda: self.ui.refresh_file_list)
+
+                    while time.time() - start < 60:
+                        try:
+                            size = os.path.getsize(path)
+                        except (OSError, PermissionError):
+                            size = -1
+
+                        if size == last_size and size != -1:
+                            if stable_start is None:
+                                stable_start = time.time()
+                            elif time.time() - stable_start >= stable_duration:
+                                break  # file size stable long enough, assume done writing
+                        else:
+                            last_size = size
+                            stable_start = None
+
+                        time.sleep(0.1)
+                    else:
+                        self.update_status("error")
+                        return
+                    
+                    self.current_uploading_file = filename
+
+                    if self.ui:
+                        self.ui.set_controls_enabled(False)
+                        self.ui.update_status_text(f"Uploading {filename}, 0/{os.stat(str(path)).st_size}")
+                        self.ui.progress_var.set(0)
+                        self.ui.bar_upload_print.pack()
+                        self.ui.start_upload_progress()
+
+                    result = self.printer.uploadFile(str(path), filename)
+
+                    if "Error" in result or "Failed" in result or "No Response" in result:
+                        self.ui.update_status_text("Upload Failed!")
+                        self.handle_error(f"Upload error: {result}")
+                    else:
+                        self.ui.update_status_text("Upload Complete!")
+                        # Update metadata on successful upload
+                        stat = path.stat()
+                        checksum = self.compute_checksum(path)
+                        with self.metadata_lock:
+                            self.metadata[filename] = {
+                                "mtime": stat.st_mtime,
+                                "size": stat.st_size,
+                                "checksum": checksum,
+                            }
+                        self.save_metadata()
+                        if filename in self.error_files:
+                            self.error_files.remove(filename)
+                        self.printer_files[filename] = (filename, stat.st_size)
+                except Exception as e:
+                    self.handle_error(f"Upload exception: {e}")
+                    self.ui.update_status_text("Upload Failed!")
+                finally:
+                    self.current_uploading_file = ""
+                    self.syncing_files.discard(filename)
+                    self.update_status("synced")
+                    if self.ui:
+                        self.ui.root.after(0, lambda:self.ui.progress_var.set(0))
+                        self.ui.root.after(0, lambda:self.ui.bar_upload_print.pack())
+                        self.ui.root.after(0, lambda: self.ui.set_controls_enabled(True))
+                        self.ui.root.after(0, lambda: self.ui.refresh_file_list)
+        threading.Thread(target=worker, daemon=True).start()
 
     def handle_error(self, message):
         self.error_files.add(message)
@@ -469,25 +487,14 @@ class SyncAgent:
         # Start tray icon
         self.setup_tray_icon()
 
-        # Force initial detection
-        self.ping_and_sync()
-
-        # Setup remote file list now
-        try:
-            if self.ping_printer():
-                self.printer_files = dict(self.printer.getCardFiles())
-        except Exception:
-            self.printer_files = {}
-
         # Start Tkinter UI on main thread
         self.setup_ui()
-
-
 
     def stop(self):
         self.stop_event.set()
         self.observer.stop()
         self.observer.join()
+
         if self.tray_icon:
             self.tray_icon.stop()
         if self.ui:
@@ -903,6 +910,8 @@ class SyncUI:
             return 80 + (p - 95) * 4
 
     def poll_progress(self):
+        if (self.agent.stop_event.is_set()):
+            return
         try:
             if (self.agent.printing_paused):
                 progressString = self.agent.printer.printingStatus()
