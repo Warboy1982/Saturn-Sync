@@ -12,7 +12,7 @@ class Printer():
         self.ip = ip
         self.port = 3000
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
-        self.sock.settimeout(20)
+        self.sock.settimeout(2)
         self.buffSize = 4096
         self.jobs = Queue()
         self.send_delay = 0.005
