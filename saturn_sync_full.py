@@ -374,6 +374,7 @@ class SyncAgent:
                     last_size = -1
                     stable_start = None
 
+                    self.current_uploading_file = filename
 
                     while time.time() - start < 60:
                         try:
@@ -393,9 +394,8 @@ class SyncAgent:
                         time.sleep(0.1)
                     else:
                         self.update_status("error")
+                        self.current_uploading_file = ""
                         return
-                    
-                    self.current_uploading_file = filename
 
                     if self.ui:
                         self.ui.root.after(0,self.ui.set_controls_enabled(False))
