@@ -532,7 +532,7 @@ class FolderChangeHandler(FileSystemEventHandler):
             return
         # Trigger manual sync due to folder change
         if self.agent.ui:
-            self.agent.ui.refresh_file_list()
+            self.agent.ui.root.after(0, self.agent.ui.refresh_file_list)
         self.agent.manual_sync()
 
     
@@ -756,10 +756,13 @@ class SyncUI:
             messagebox.showinfo("Folder", path)
 
     def update_status_text(self, new_status):
-        self.text_status['state'] = 'normal'
-        self.text_status.delete("1.0", tk.END)
-        self.text_status.insert("1.0", new_status)
-        self.text_status['state'] = 'disabled'
+        if self.window:
+            def _update():
+                self.text_status['state'] = 'normal'
+                self.text_status.delete("1.0", tk.END)
+                self.text_status.insert("1.0", new_status)
+                self.text_status['state'] = 'disabled'
+            self.window.after(0, _update)
 
     def run(self):
         self.root.mainloop()
@@ -897,9 +900,10 @@ class SyncUI:
         self.btn_sync_now.config(state=state)
 
     def start_upload_progress(self):
-        self.set_controls_enabled(False)
-        self.progress_var.set(0)
-        self.bar_upload_print.pack()
+        
+        self.root.after(0, lambda: self.set_controls_enabled(False))
+        self.root.after(0, lambda: self.progress_var.set(0))
+        self.root.after(0, self.bar_upload_print.pack)
         self.poll_progress()
 
     def fuzzy_percent(self, p: float) -> float:
@@ -933,11 +937,11 @@ class SyncUI:
                         filenameshort += "..."
                     progressString=progressString.split()[4] # we only want the x/y portion
                     progress=self.fuzzy_percent((float)(progressString.split("/")[0]) / (float)(progressString.split("/")[1]) * 100)
-                    self.update_status_text(f"Printing {filenameshort}: {round(progress, 2)}%")
-                    self.set_controls_enabled(False)
-                    self.progress_var.set(progress)
+                    self.root.after(0, lambda: self.update_status_text(f"Printing {filenameshort}: {round(progress, 2)}%"))
+                    self.root.after(0, lambda: self.set_controls_enabled(False))
+                    self.root.after(0, lambda: self.progress_var.set(progress))
                 else:
-                    self.update_status_text("Printing Complete!")
+                    self.root.after(0, lambda: self.update_status_text("Printing Complete!"))
                     self.agent.printing_paused = False
                     self.agent.current_printing_file = ""
             else:
@@ -945,27 +949,27 @@ class SyncUI:
                 remaining = self.agent.printer.remaining
                 if remaining > 0:
                     progress = 1 - remaining / filelength
-                    self.set_controls_enabled(False)
-                    self.progress_var.set(int(progress * 100))
                     filenameshort = self.agent.current_uploading_file
                     if len(filenameshort) > 18:
                         filenameshort = filenameshort[:15]
                         filenameshort += "..."
-                    self.update_status_text(f"Uploading {filenameshort} {int((filelength - remaining)/1024)}/{int(filelength/1024)} kb")
+                    self.root.after(0, lambda: self.set_controls_enabled(False))
+                    self.root.after(0, lambda: self.progress_var.set(int(progress * 100)))
+                    self.root.after(0, lambda: self.update_status_text(f"Uploading {filenameshort} {int((filelength - remaining)/1024)}/{int(filelength/1024)} kb"))
                 else:
-                    self.update_status_text("Upload Complete!")
+                    self.root.after(0, lambda: self.update_status_text("Upload Complete!"))
         except Exception:
-            self.set_controls_enabled(True)
-            self.progress_var.set(0)
-            self.bar_upload_print.pack()
+            self.root.after(0, lambda: self.set_controls_enabled(True))
+            self.root.after(0, lambda: self.progress_var.set(0))
+            self.root.after(0, self.bar_upload_print.pack)
         finally:
             if self.agent.printing_paused or self.agent.current_uploading_file != "":
                 self.root.after(200, self.poll_progress)
             else:
-                self.set_controls_enabled(True)
-                self.progress_var.set(0)
-                self.bar_upload_print.pack()
-                self.refresh_file_list()
+                self.root.after(0, lambda: self.set_controls_enabled(True))
+                self.root.after(0, lambda: self.progress_var.set(0))
+                self.root.after(0, self.bar_upload_print.pack)
+                self.root.after(0, self.refresh_file_list)
 
 def main():
     agent = SyncAgent()
