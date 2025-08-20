@@ -276,17 +276,20 @@ class Printer():
         self.filelength = 0
         self.remaining = 0
 
+        retstring = ""
         M4012 = self.__sendRecieveSingleNice__(f"M4012 I1 T{self.filelength}")
         if M4012.split()[0] != "ok":
-            retstring = ""
             if retr > 0:
                 retstring = f"{retr} Transfer Error(s): Consider increasing send delay.\n"
             retstring = retstring + f"Size Verify Error: {M4012}"
             confirmation = self.sock.recv(self.buffSize) #absorb the ok message after our error message
             return retstring
 
-        return self.__sendRecieveSingleNice__("M29")
-
+        retstring = self.__sendRecieveSingleNice__("M29")
+        sleep(0.005)
+        confirmation = self.sock.recv(self.buffSize)
+        return retstring
+    
     def formatCard(self):
         """Formats storage
         """
