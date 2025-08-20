@@ -398,11 +398,11 @@ class SyncAgent:
                     self.current_uploading_file = filename
 
                     if self.ui:
-                        self.ui.set_controls_enabled(False)
+                        self.ui.root.after(0,self.ui.set_controls_enabled(False))
                         self.ui.update_status_text(f"Uploading {filename}, 0/{os.stat(str(path)).st_size}")
-                        self.ui.progress_var.set(0)
-                        self.ui.bar_upload_print.pack()
-                        self.ui.start_upload_progress()
+                        self.ui.root.after(0,self.ui.progress_var.set(0))
+                        self.ui.root.after(0,self.ui.bar_upload_print.pack())
+                        self.ui.root.after(0,self.ui.start_upload_progress())
 
                     result = self.printer.uploadFile(str(path), filename)
 
@@ -432,10 +432,10 @@ class SyncAgent:
                     self.syncing_files.discard(filename)
                     self.update_status("synced")
                     if self.ui:
-                        self.ui.root.after(0, lambda:self.ui.progress_var.set(0))
-                        self.ui.root.after(0, lambda:self.ui.bar_upload_print.pack())
-                        self.ui.root.after(0, lambda: self.ui.set_controls_enabled(True))
-                        self.ui.root.after(0, lambda: self.ui.refresh_file_list)
+                        self.ui.root.after(0, self.ui.progress_var.set(0))
+                        self.ui.root.after(0, self.ui.bar_upload_print.pack())
+                        self.ui.root.after(0, self.ui.set_controls_enabled(True))
+                        self.ui.root.after(0, self.ui.refresh_file_list())
         threading.Thread(target=worker, daemon=True).start()
 
     def handle_error(self, message):
@@ -756,13 +756,13 @@ class SyncUI:
             messagebox.showinfo("Folder", path)
 
     def update_status_text(self, new_status):
-        if self.window:
+        if self.root:
             def _update():
                 self.text_status['state'] = 'normal'
                 self.text_status.delete("1.0", tk.END)
                 self.text_status.insert("1.0", new_status)
                 self.text_status['state'] = 'disabled'
-            self.window.after(0, _update)
+            self.root.after(0, _update)
 
     def run(self):
         self.root.mainloop()
@@ -937,11 +937,11 @@ class SyncUI:
                         filenameshort += "..."
                     progressString=progressString.split()[4] # we only want the x/y portion
                     progress=self.fuzzy_percent((float)(progressString.split("/")[0]) / (float)(progressString.split("/")[1]) * 100)
-                    self.root.after(0, lambda: self.update_status_text(f"Printing {filenameshort}: {round(progress, 2)}%"))
+                    self.update_status_text(f"Printing {filenameshort}: {round(progress, 2)}%")
                     self.root.after(0, lambda: self.set_controls_enabled(False))
                     self.root.after(0, lambda: self.progress_var.set(progress))
                 else:
-                    self.root.after(0, lambda: self.update_status_text("Printing Complete!"))
+                    self.update_status_text("Printing Complete!")
                     self.agent.printing_paused = False
                     self.agent.current_printing_file = ""
             else:
@@ -955,9 +955,9 @@ class SyncUI:
                         filenameshort += "..."
                     self.root.after(0, lambda: self.set_controls_enabled(False))
                     self.root.after(0, lambda: self.progress_var.set(int(progress * 100)))
-                    self.root.after(0, lambda: self.update_status_text(f"Uploading {filenameshort} {int((filelength - remaining)/1024)}/{int(filelength/1024)} kb"))
+                    self.update_status_text(f"Uploading {filenameshort} {int((filelength - remaining)/1024)}/{int(filelength/1024)} kb")
                 else:
-                    self.root.after(0, lambda: self.update_status_text("Upload Complete!"))
+                    self.update_status_text("Upload Complete!")
         except Exception:
             self.root.after(0, lambda: self.set_controls_enabled(True))
             self.root.after(0, lambda: self.progress_var.set(0))
