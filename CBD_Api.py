@@ -262,7 +262,7 @@ class Printer():
                 parts = s_str.split()
                 amt_str = parts[1].split(",")[0]
                 offs_str = parts[2].split(":")[1]
-                readamt = int(amt_str)
+                #readamt = int(amt_str)
                 offs = int(offs_str)
                 self.remaining = self.filelength - offs
                 retr += 1
