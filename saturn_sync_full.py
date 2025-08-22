@@ -232,6 +232,11 @@ class SyncAgent:
         if (printJob != "Not Printing"):
             self.update_status("printing")
             self.printing_paused = True
+            if self.printer_files == {}: # if the printer is online and printing, we can grab the file list now before we get locked out of syncing
+                try:
+                    self.printer_files = dict(self.printer.getCardFiles())
+                except Exception:
+                    self.printer_files = {}
         self.sync_all()
 
     def ping_printer(self):
