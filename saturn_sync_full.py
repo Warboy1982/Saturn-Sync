@@ -510,7 +510,7 @@ class SyncAgent:
 
     def setup_tray_icon(self):
         menu = (
-            item("Open UI", self.show_ui),
+            item("Open UI", self.show_ui, default=True),
             item("Sync Now", lambda _: self.manual_sync()),
             item("Exit", lambda _: self.stop()),
         )
