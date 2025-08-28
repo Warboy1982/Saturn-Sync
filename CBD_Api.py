@@ -251,7 +251,18 @@ class Printer():
                 dc.append(cxor)
                 dc.append(0x83)
                 self.sock.sendto(dd+dc, (self.ip,self.port))
-            s = self.sock.recv(self.buffSize)
+            try:
+                s = self.sock.recv(self.buffSize)
+            except Exception as e:
+                s = b""
+                if "time" in str(e) and retr < 5:
+                    retr +=1
+                    self.sock.settimeout(retr + 3)
+                    print(retr,self.remaining,end='   \r')
+                    sleep(self.send_delay)
+                    continue
+                else:
+                    return f"Transfer Error: {e}"
             if s.split()[0] == b"ok":
                 readamt = 1280
                 if send:
@@ -265,7 +276,7 @@ class Printer():
                 parts = s_str.split()
                 amt_str = parts[1].split(",")[0]
                 offs_str = parts[2].split(":")[1]
-                #readamt = int(amt_str)
+                readamt = int(amt_str)
                 offs = int(offs_str)
                 self.remaining = self.filelength - offs
                 retr += 1
