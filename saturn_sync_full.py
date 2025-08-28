@@ -220,7 +220,13 @@ class SyncAgent:
     def ping_and_sync(self):
         if not self.ping_printer():
             self.update_status("offline")
+            self.printer_files.clear()
             return
+        if self.printer_files == {}: 
+            try:
+                self.printer_files = dict(self.printer.getCardFiles())
+            except Exception:
+                self.printer_files = {}
         if self.current_uploading_file != "":
             self.update_status("syncing")
             return
@@ -232,11 +238,6 @@ class SyncAgent:
         if (printJob != "Not Printing"):
             self.update_status("printing")
             self.printing_paused = True
-            if self.printer_files == {}: # if the printer is online and printing, we can grab the file list now before we get locked out of syncing
-                try:
-                    self.printer_files = dict(self.printer.getCardFiles())
-                except Exception:
-                    self.printer_files = {}
         self.sync_all()
 
     def ping_printer(self):
@@ -254,7 +255,7 @@ class SyncAgent:
         return True
 
     def sync_all(self):
-        if self.printing_paused:
+        if self.printing_paused or self.current_uploading_file != "":
             return
         with self.sync_lock:
             self.update_status("syncing")
@@ -414,6 +415,7 @@ class SyncAgent:
                     if "Error" in result or "Failed" in result or "No Response" in result:
                         self.ui.update_status_text("Upload Failed!")
                         self.handle_error(f"Upload error: {result}")
+                        self.error_files.add(filename)
                     else:
                         self.ui.update_status_text("Upload Complete!")
                         # Update metadata on successful upload
