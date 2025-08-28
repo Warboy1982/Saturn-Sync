@@ -106,7 +106,8 @@ class Printer():
                     output.append(self.__stripSpaceFromBack__(request))
 
             request = self.__stripFormatting__((self.sock.recv(self.buffSize)))
-        confirmation = self.sock.recv(self.buffSize) #absorb the ok message
+        self.sock.sendto(bytes("syn", "utf-8"), (self.ip, self.port)) # send a meaningless message - printer is waiting for confirmation of any sort
+        confirmation = self.sock.recv(self.buffSize) # absorb the extra ok message
         return(output)
     
     def homeAxis(self) -> None:
@@ -180,8 +181,10 @@ class Printer():
             string = self.__sendRecieveSingleNice__("M27")
         except:
             return "Not Printing"
-
-        confirmation = self.sock.recv(self.buffSize) #absorb the ok message
+        if string == "ok":
+            string = self.sock.recv(self.buffSize)
+        else:
+            confirmation = self.sock.recv(self.buffSize) #absorb the ok message
         if string.split()[0] == "SD":
             return f"Printing {string}"
         return "Not Printing"
