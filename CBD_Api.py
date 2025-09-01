@@ -107,6 +107,7 @@ class Printer():
 
             request = self.__stripFormatting__((self.sock.recv(self.buffSize)))
         self.sock.sendto(bytes("syn", "utf-8"), (self.ip, self.port)) # send a meaningless message - printer is waiting for confirmation of any sort
+        confirmation = self.sock.recv(self.buffSize) # absorb the first ok message
         confirmation = self.sock.recv(self.buffSize) # absorb the extra ok message
         return(output)
     
@@ -182,7 +183,7 @@ class Printer():
         except:
             return "Not Printing"
         if string == "ok":
-            string = self.sock.recv(self.buffSize)
+            string = self.__stripFormatting__(self.sock.recv(self.buffSize))
         else:
             confirmation = self.sock.recv(self.buffSize) #absorb the ok message
         if string.split()[0] == "SD":
