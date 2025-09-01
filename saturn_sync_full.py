@@ -239,7 +239,7 @@ class SyncAgent:
             self.update_status("printing")
             self.printing_paused = True
             if self.ui:
-                self.ui.start_upload_progress(self.ui)
+                self.ui.start_upload_progress()
         self.sync_all()
 
     def ping_printer(self):
