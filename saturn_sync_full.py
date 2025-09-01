@@ -363,6 +363,8 @@ class SyncAgent:
         def worker():
             filesToSync = self.syncing_files.copy()
             for filename in filesToSync:
+                if self.stop_event.is_set():
+                    return
                 path = Path(self.sync_folder) / filename
                 if not os.path.isfile(path): #in case file was deleted since being added to the list
                     self.syncing_files.discard(filename)
@@ -402,7 +404,8 @@ class SyncAgent:
                         else:
                             last_size = size
                             stable_start = None
-
+                        if self.stop_event.is_set():
+                            return
                         time.sleep(stable_duration/2)
                     else:
                         if not os.path.isfile(path):
@@ -566,6 +569,14 @@ class SyncUI:
         self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
 
         menubar = tk.Menu(self.root)
+
+        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label="Open Sync Folder", command=self.open_folder)
+        file_menu.add_command(label="Delete File", command=self.delete_selected_file)
+        file_menu.add_separator()
+        file_menu.add_command(label="Close GUI", command=self.hide_window)
+        file_menu.add_command(label="Exit", command=self.agent.stop)
+        menubar.add_cascade(label="File", menu=file_menu)
         config_menu = tk.Menu(menubar, tearoff=0)
         config_menu.add_command(label="Change Sync Folder", command=self.change_sync_folder)
         config_menu.add_command(label="Change Printer IP", command=self.change_printer_ip)
@@ -620,14 +631,12 @@ class SyncUI:
         btn_frame.pack(fill=tk.X, padx=10, pady=(0, 6))
 
         self.btn_print = tk.Button(btn_frame, text="Print Selected File", command=self.print_selected_file)
-        self.btn_open_folder = tk.Button(btn_frame, text="Open Sync Folder", command=self.open_folder)
         self.btn_refresh = tk.Button(btn_frame, text="Refresh File List", command=self.refresh_file_list)
         self.btn_sync_now = tk.Button(btn_frame, text="Manual Sync Now", command=self.agent.manual_sync)
 
         self.btn_print.pack(side=tk.LEFT, padx=5)
         self.btn_refresh.pack(side=tk.RIGHT, padx=5)
         self.btn_sync_now.pack(side=tk.RIGHT, padx=5)
-        self.btn_open_folder.pack(side=tk.RIGHT, padx=5)
 
         bar_frame = tk.Frame(self.root)
         bar_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
