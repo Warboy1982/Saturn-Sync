@@ -238,6 +238,8 @@ class SyncAgent:
         if (printJob != "Not Printing"):
             self.update_status("printing")
             self.printing_paused = True
+            if self.ui:
+                self.ui.start_upload_progress(self.ui)
         self.sync_all()
 
     def ping_printer(self):
