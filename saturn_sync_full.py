@@ -369,22 +369,26 @@ class SyncAgent:
                     continue
                 try:
                     # Check printing status before upload
-                    if self.printer.printingStatus().startswith("Printing"):
+                    printCheck = self.printer.printingStatus()
+                    if printCheck.startswith("Printing"):
                         # Defer upload
                         self.printing_paused = True
+                        return
+                    if printCheck == "Timeout":
                         return
 
                     self.printing_paused = False
                     self.update_status("syncing")
                     
-                    stable_duration = 1.0  # seconds
+                    stable_duration = 2.0  # seconds
                     start = time.time()
                     last_size = -1
                     stable_start = None
+                    timeout = 240 # wait up to four minutes for filesize to stabilize
 
                     self.current_uploading_file = filename
 
-                    while time.time() - start < 60:
+                    while time.time() - start < timeout and os.path.isfile(path):
                         try:
                             size = os.path.getsize(path)
                         except (OSError, PermissionError):
@@ -399,11 +403,12 @@ class SyncAgent:
                             last_size = size
                             stable_start = None
 
-                        time.sleep(0.1)
+                        time.sleep(stable_duration/2)
                     else:
-                        self.update_status("error")
+                        if not os.path.isfile(path):
+                            self.syncing_files.discard(filename) # ghost file
                         self.current_uploading_file = ""
-                        return
+                        continue
 
                     if self.ui:
                         self.ui.root.after(0,self.ui.set_controls_enabled(False))
@@ -973,7 +978,7 @@ class SyncUI:
             self.root.after(0, self.bar_upload_print.pack)
         finally:
             if self.agent.printing_paused or self.agent.current_uploading_file != "":
-                self.root.after(1000, self.poll_progress)
+                self.root.after(3000, self.poll_progress)
             else:
                 self.root.after(0, lambda: self.set_controls_enabled(True))
                 self.root.after(0, lambda: self.progress_var.set(0))
