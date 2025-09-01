@@ -928,7 +928,7 @@ class SyncUI:
         try:
             if (self.agent.printing_paused):
                 progressString = self.agent.printer.printingStatus()
-                if progressString != "Not Printing":
+                if progressString != "Not Printing" and progressString != "Timeout":
                     filenameshort = self.agent.current_printing_file
                     if filenameshort == "":
                         printSize = (float)(progressString.split("/")[1])
@@ -949,7 +949,7 @@ class SyncUI:
                     self.update_status_text(f"Printing {filenameshort}: {round(progress, 2)}%")
                     self.root.after(0, lambda: self.set_controls_enabled(False))
                     self.root.after(0, lambda: self.progress_var.set(progress))
-                else:
+                elif progressString != "Timeout":
                     self.update_status_text("Printing Complete!")
                     self.agent.printing_paused = False
                     self.agent.current_printing_file = ""

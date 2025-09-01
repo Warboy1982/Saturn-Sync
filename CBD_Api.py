@@ -181,7 +181,7 @@ class Printer():
         try:
             string = self.__sendRecieveSingleNice__("M27")
         except:
-            return "Not Printing"
+            return "Timeout"
         if string == "ok":
             string = self.__stripFormatting__(self.sock.recv(self.buffSize))
         else:
