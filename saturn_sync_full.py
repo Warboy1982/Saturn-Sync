@@ -973,7 +973,7 @@ class SyncUI:
             self.root.after(0, self.bar_upload_print.pack)
         finally:
             if self.agent.printing_paused or self.agent.current_uploading_file != "":
-                self.root.after(200, self.poll_progress)
+                self.root.after(1000, self.poll_progress)
             else:
                 self.root.after(0, lambda: self.set_controls_enabled(True))
                 self.root.after(0, lambda: self.progress_var.set(0))
