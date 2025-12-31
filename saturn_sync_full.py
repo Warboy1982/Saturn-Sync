@@ -527,7 +527,7 @@ class SyncAgent:
             item("Exit", lambda _: self.stop()),
         )
         self.tray_icon = pystray.Icon("SaturnSync", self.icon_images["offline"], "Saturn Sync Agent", menu)
-        self.tray_icon.run_detached()
+        threading.Thread(target=self.tray_icon.run, daemon=True).start()
         self.tray_icon.visible = True
 
     def show_ui(self, _=None):
